@@ -1,36 +1,27 @@
-# Subspace Module Boilerplate
+# Subspace Tracker Module
 
-A boilerplate repo for new subspace modules that includes
+## External Usage
 
-* [Typescript](https://www.typescriptlang.org/index.html)
-* Supports testing with [Jest](https://jestjs.io/)
-* [Yarn](https://yarnpkg.com/en/) for managing dependencies
-* Node JS .gitignore
-
-## Setup
-
-Clone a bare copy of this repo locally
+Install this module as a dependency into another project
 
 ```
-git clone --bare https://github.com/subspace/boilerplate.git
+$ yarn add 'https://www.github.com/subspace/tracker.git'
 ```
 
-Create a new empty repo in the subspace org with name: module_name  
-Mirror push to the new repo
+Require this module inside a script
 
-```
-$ cd boilerplate.git
-$ git push --mirror https://www.github.com/subspace/module_name.git
-```
+```javascript
+const tracker = require('subspace-tracker').default
+const Storage = require('subspace-storage').default
 
-Remove the temporary repo 
-```
-$ cd ../
-$ rm -rf boilerplate.git
+const storage = new Storage()
+tracker.open(storage)
 ```
 
-Clone and install the new repo locally   
-Make sure you edit package.json with new module_name
+
+## Development Usage
+
+Clone and install the repo locally   
 
 ```
 $ git clone https://www.github.com/subspace/module_name
@@ -38,12 +29,7 @@ $ cd module_name
 $ yarn
 ```
 
-## Development
-
-Start writing code in src/main.ts
-
 Build manually.  
-This will create an entry point at dist/main.js
  
 ```
 $ tsc -w
@@ -51,24 +37,9 @@ $ tsc -w
 
 [Instructions](https://code.visualstudio.com/docs/languages/typescript#_step-2-run-the-typescript-build) to automate with visual studio code.
 
-## Testing
-
-Write tests in src/main.tests.ts (example provided) and run with
+Run tests
 
 ```
 $ npx jest
 ```
 
-## External Usage
-
-Install this module as a dependency into another project
-
-```
-$ yarn add 'https://www.github.com/subspace/module_name.git'
-```
-
-Require this module inside a script
-
-```javascript
-const module_name = require('module_name').default
-```
