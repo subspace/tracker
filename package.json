@@ -13,7 +13,7 @@
     "typescript": "^3.0.1"
   },
   "dependencies": {
-    "subspace-crypto": "https://www.github.com/subspace/crypto.git",
-    "subspace-profile": "https://www.github.com/subspace/profile.git"
+    "subspace-crypto": "@subspace/crytpo",
+    "subspace-profile": "@subspace/profile"
   }
 }
