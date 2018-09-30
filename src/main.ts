@@ -1,6 +1,7 @@
 const crypto = require('@subspace/crypto')
 import EventEmitter from 'events'
 import * as interfaces from './interfaces'
+import {getClosestIdsByXor} from "@subspace/utils";
 
 
 // TODO
@@ -69,13 +70,13 @@ class Tracker extends EventEmitter {
       entry.status = false
     } else if (update.type === 'rejoin') {
       entry.status = true
-    } 
+    }
 
     entry.timestamp = update.timestamp
     entry.log.push(update)
     entry.hash = crypto.getHash(JSON.stringify(entry))
     this.lht.set(update.node_id, entry)
-    return 
+    return
 
   }
 
@@ -102,25 +103,41 @@ class Tracker extends EventEmitter {
     return node_ids
   }
 
-  getNeighbors(my_node_id: string) {
+  getNeighbors(my_node_id: string): string[] {
     // generate an array of node_ids based on the current membership set
-    // default number (N) is log(2)(tracker_length), but no less than four 
+    // default number (N) is log(2)(tracker_length), but no less than four
     // for my direct neighbors that I will connect to (first N/2)
       // hash my id n times where n is neighbor I am selecting in the sequence
       // find the node closest to my hashed id by XOR
-      // add node_id to my neighbor array 
+      // add node_id to my neighbor array
     // for my indirect neighbors who will connect to me (second N/2)
       // hash each node_id n/2 times and compile into a single array
       // for each element in the array find the closest node_id by XOR
       // if my id is one of those then add to my neighbor array
-
+    // TODO: This takes all neighbors from `this.lht`
+    const nodesToReturn = Math.max(
+      4,
+      Math.round(
+        Math.log2(this.getLength())
+      )
+    )
+    // Hack: we mess with `Buffer` because `getClosestIdsByXor()` works with binary `Uint8Array`
+    const ownId = Buffer.from(my_node_id, 'hex')
+    return (
+      getClosestIdsByXor(
+        ownId,
+        this.getNodeIds().map(id => Buffer.from(id, 'hex')),
+        nodesToReturn
+      )
+      .map(id => Buffer.from(id).toString('hex'))
+    )
   }
 
   parseUpdate(update: interfaces.leaveObject | interfaces.failureObject | interfaces.reJoinObject) {
     const array: (string | number)[] = Object.values(update)
     const arrayString: string = array.toString()
     const hash: string = crypto.getHash(arrayString)
-    return { array, hash } 
+    return { array, hash }
   }
 
   addDelta(update: interfaces.leaveObject | interfaces.failureObject | interfaces.reJoinObject) {
@@ -138,13 +155,13 @@ class Tracker extends EventEmitter {
   }
 
   inMemDelta(update: interfaces.leaveObject | interfaces.failureObject | interfaces.reJoinObject) {
-    // check if an update is in the delta 
+    // check if an update is in the delta
     const hash: string = this.parseUpdate(update).hash
     return this.memDelta.has(hash)
   }
 
   hasDelta() {
-    // check if the delta is empty 
+    // check if the delta is empty
     if (this.memDelta.size > 0) {
       return true
     } else {
