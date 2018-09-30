@@ -41,7 +41,7 @@ class Tracker extends events_1.default {
             public_ip: join.public_ip,
             timestamp: join.timestamp,
             status: true,
-            balance: 0,
+            uptime: 0,
             log: [join]
         };
         entry.hash = crypto.getHash(JSON.stringify(entry));
@@ -55,7 +55,7 @@ class Tracker extends events_1.default {
     updateEntry(update) {
         let entry = this.getEntry(update.node_id);
         if (update.type === 'leave' || update.type === 'failure') {
-            entry.balance += update.timestamp - entry.timestamp;
+            entry.uptime += update.timestamp - entry.timestamp;
             entry.status = false;
         }
         else if (update.type === 'rejoin') {
@@ -63,6 +63,7 @@ class Tracker extends events_1.default {
         }
         entry.timestamp = update.timestamp;
         entry.log.push(update);
+        entry.hash = null;
         entry.hash = crypto.getHash(JSON.stringify(entry));
         this.lht.set(update.node_id, entry);
         return;
@@ -83,6 +84,7 @@ class Tracker extends events_1.default {
     getNodeIds() {
         // returns an array of all node ids in the lht
         const node_ids = [...this.lht.keys()];
+        // const node_ids = this.lht.keys() // alternative way
         return node_ids;
     }
     getNeighbors(my_node_id) {

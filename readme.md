@@ -12,9 +12,9 @@ The Local Hash Table (LHT) is an ES6 map object that holds the crucial info for 
 
 join() -> When a host joins it shares it's info and signs to prove authenticity. This will create a new entry in the LHT, and the join will be saved in the entry log.
 
-leave() -> When a host leaves gracefully it sends a signed leave proof. This update the existing in the LHT, accruing a time balance and setting the status offline, and the leave will be appended to the log.
+leave() -> When a host leaves gracefully it sends a signed leave proof. This update the existing in the LHT, accruing a time uptime and setting the status offline, and the leave will be appended to the log.
 
-failure() -> When neighbors of a host detect a closed socket, they will check with the hosts other neighbors before initiating PARSEC binary agreement and creating the failure proof. This will update an existing record in the LHT, accruing a time balance and setting the status to offline, and the failure will be appended to the log.
+failure() -> When neighbors of a host detect a closed socket, they will check with the hosts other neighbors before initiating PARSEC binary agreement and creating the failure proof. This will update an existing record in the LHT, accruing a time uptime and setting the status to offline, and the failure will be appended to the log.
 
 rejoin() -> If the host later reconnects they will gossip a rejoin proof. This will set their status back to online, and they proof will be appended to the log.
 
@@ -36,7 +36,7 @@ full_node_entry = {
     public_ip: string,
     timestamp: number,
     status: boolean,
-    balance: number
+    uptime: number
     log: (joinObject | leaveObject | reJoinObject | failureObject)[],
   }
 }
@@ -49,7 +49,7 @@ light_host_entry = {
     public_ip: string,
     timestamp: number,
     status: boolean,
-    balance: number
+    uptime: number
   }
 }
 

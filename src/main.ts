@@ -47,7 +47,7 @@ class Tracker extends EventEmitter {
       public_ip: join.public_ip,
       timestamp: join.timestamp,
       status: true,
-      balance: 0,
+      uptime: 0,
       log: [join]
     }
 
@@ -65,7 +65,7 @@ class Tracker extends EventEmitter {
     let entry = this.getEntry(update.node_id)
 
     if (update.type === 'leave' || update.type === 'failure') {
-      entry.balance += update.timestamp - entry.timestamp
+      entry.uptime += update.timestamp - entry.timestamp
       entry.status = false
     } else if (update.type === 'rejoin') {
       entry.status = true
@@ -73,6 +73,7 @@ class Tracker extends EventEmitter {
 
     entry.timestamp = update.timestamp
     entry.log.push(update)
+    entry.hash = null
     entry.hash = crypto.getHash(JSON.stringify(entry))
     this.lht.set(update.node_id, entry)
     return 
@@ -87,18 +88,19 @@ class Tracker extends EventEmitter {
   }
 
   hasEntry(node_id: string) {
-    const has: boolean = this.lht.has(node_id)
+    const has = this.lht.has(node_id)
     return has
   }
 
   getLength() {
-    const length: number = this.lht.size
+    const length = this.lht.size
     return length
   }
 
   getNodeIds() {
     // returns an array of all node ids in the lht
     const node_ids: string[] = [...this.lht.keys()]
+    // const node_ids = this.lht.keys() // alternative way
     return node_ids
   }
 
