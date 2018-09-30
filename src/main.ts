@@ -1,170 +1,172 @@
-const crypto = require('subspace-crypto').default
-const profile = require('subspace-profile').default
-const EventEmitter = require('events')
+const crypto = require('@subspace/crypto')
+import EventEmitter from 'events'
+import * as interfaces from './interfaces'
+
 
 // TODO
-  // track connection uptime
+  // implement light_host and light_client trackers
+  // implement pending_join protocol for atomic joins
   // implement anti-entropy for periodic comparisons instead of merge
-
-// Purpose
-  // Farmers must know uptime of hosts for payments
-  // Clients must know the membership set to assigns shards and keys to hosts
-  // Hosts must have to locate neighbors and track with parsec
-
-// Concept
-  // updates are dissemenated via signed gossip
-    // add record -> join 
-    // remove record -> expiration (of pledge)
-    // update record -> leave (simple) or failure (complex)
-  // periodically nodes will compare merkle roots and sync via anti-entropy 
-  // different nodes will require different amounts of data in their tracker 
-
-// example entry, each entry is ~ 96 bytes
-
-// entry = {
-//   key: publicAddress,  // 32 byte SHA256 hash of ECDSA public key
-//   value: [
-//     publicKey,         // 32 byte compressed ECDSA openPGP public key
-//     timestamp,         // 4 byte unix timestamp
-//     signature          // 24 byte openPGP detached signature
-//   ]
-// }
-
-
-
-interface joinObject {
-  node_id: string,
-  publicKey: string,
-  pledge: number,
-  proof: string,
-  timeStamp: number,
-  signature: string
-}
-
-interface leaveObject {
-  node_id: string,
-  timeStamp: number,
-  signature: string
-}
-
-interface signatureObject {
-  node_id: string,
-  signature: string
-}
-
-interface failureObject {
-  node_id: string,
-  timeStamp: number,
-  signatures: signatureObject[]
-}
-
-interface updateObject {
-  joins: joinObject[],
-  leaves: leaveObject[],
-  failures: failureObject[]
-}
-
-interface entryObject {
-  publicKey: string,
-  pledge: number,
-  proof: string,
-  public_ip: string,
-  udp_port: number,
-  timeStamp: number,
-  signature: string
-}
+  // implement parsec on failure
+  // devise countermeasure to parrallel farming
 
 class Tracker extends EventEmitter {
-  lht: Map <string, entryObject>
+  lht: Map <string, interfaces.entryObject>
+  memDelta: Map <string, (string | number)[]>
 
-  constructor() {
+  constructor(storage: any) {
     super()
+    this.init(storage)
   }
 
-  async start (storage: any) {
+  private async init (storage: any) {
     // decides if to create or load the lht
     let lht: string = await storage.get('lht')
     if (lht) {
-      this.create_lht()
+      this.lht = new Map(JSON.parse(lht))
     } else {
-      this.load_lht(storage, lht)
+      this.lht = new Map()
     }
 
     setInterval( () => {
-      this.save_lht(storage)
+      const string_lht: string = JSON.stringify([...this.lht])
+      storage.set('lht', string_lht)
     }, 6000000) // save every hour
 
     return
   }
 
-  create_lht() {
-    // creates a new lht if one does not exist
-    this.lht = new Map()
-  }
+  addEntry(node_id: string, join: interfaces.joinObject) {
+    // assumes entry is validated in message
 
-  async load_lht(storage: any, lht: any) {
-    // loads the last lht from disk on restart, allowing host to have better knwoledge of gateway nodes
-    this.lht = new Map(lht)
-  }
+    var entry: interfaces.entryObject = {
+      hash: null,
+      public_key: join.public_key,
+      pledge: join.pledge,
+      proof_hash: join.proof_hash,
+      public_ip: join.public_ip,
+      timestamp: join.timestamp,
+      status: true,
+      uptime: 0,
+      log: [join]
+    }
 
-  async save_lht (storage: any) {
-    // persists lht to disk 
-    const lht: any = Tracker.get_records()
-    await storage.set('lht', lht)
+    entry.hash = crypto.getHash(JSON.stringify(entry))
+    this.lht.set(node_id, entry)
     return
   }
 
-  merge_lhts(lht: any) {
-    // merges a persisted lht with an lht received from a gateway node
-    const myMap: any = Tracker.lht
-    const gatewayMap: any = new Map(lht)
-    Tracker.lht = new Map([...myMap, ...gatewayMap])
+  getEntry(node_id: string) {
+    const entry: interfaces.entryObject = this.lht.get(node_id)
+    return entry
   }
 
-  set_member(nodeId: string, value: any[]) {
-    // add a new member record to the lht on valid join
-    if (nodeId !== profile.hexId) {
-      this.lht.set(nodeId, value)
-      console.log('Added a new member to the LHT')
-    }
+  updateEntry(update: interfaces.leaveObject | interfaces.failureObject | interfaces.reJoinObject) {
+    let entry = this.getEntry(update.node_id)
+
+    if (update.type === 'leave' || update.type === 'failure') {
+      entry.uptime += update.timestamp - entry.timestamp
+      entry.status = false
+    } else if (update.type === 'rejoin') {
+      entry.status = true
+    } 
+
+    entry.timestamp = update.timestamp
+    entry.log.push(update)
+    entry.hash = null
+    entry.hash = crypto.getHash(JSON.stringify(entry))
+    this.lht.set(update.node_id, entry)
+    return 
+
   }
 
-  get_member(nodeId: string) {
-    // retrieve an existing member record from the LHT by node id
-    const record: object = this.lht.get(nodeId)
-    return record
+  removeEntry(node_id: string) {
+    // if host expires, when?
+
+    this.lht.delete(node_id)
+    return
   }
 
-  delete_member(nodeId: string) {
-    // remove an existing member record from the LHT by node id on valid leave or failure
-    this.lht.delete(nodeId)
-  }
-
-  has_member(nodeId: string) {
-    // checks if a member is in the lht 
-    const has: boolean = this.lht.has(nodeId)
+  hasEntry(node_id: string) {
+    const has = this.lht.has(node_id)
     return has
   }
 
-  get_length() {
-    // returns the number of records in the LHT
-    const length: number = this.lht.size
+  getLength() {
+    const length = this.lht.size
     return length
   }
 
-  get_ids() {
+  getNodeIds() {
     // returns an array of all node ids in the lht
-    const ids: string[] = [...Tracker.lht.keys()]
-    return ids
+    const node_ids: string[] = [...this.lht.keys()]
+    // const node_ids = this.lht.keys() // alternative way
+    return node_ids
   }
 
-  get_records() {
-    // returns an array of all member records in the lht
-    const records: object[] = [...Tracker.lht.entries()]
-  }
-
-  compute_neighbors() {
+  getNeighbors(my_node_id: string) {
     // generate an array of node_ids based on the current membership set
+    // default number (N) is log(2)(tracker_length), but no less than four 
+    // for my direct neighbors that I will connect to (first N/2)
+      // hash my id n times where n is neighbor I am selecting in the sequence
+      // find the node closest to my hashed id by XOR
+      // add node_id to my neighbor array 
+    // for my indirect neighbors who will connect to me (second N/2)
+      // hash each node_id n/2 times and compile into a single array
+      // for each element in the array find the closest node_id by XOR
+      // if my id is one of those then add to my neighbor array
+
+  }
+
+  parseUpdate(update: interfaces.leaveObject | interfaces.failureObject | interfaces.reJoinObject) {
+    const array: (string | number)[] = Object.values(update)
+    const arrayString: string = array.toString()
+    const hash: string = crypto.getHash(arrayString)
+    return { array, hash } 
+  }
+
+  addDelta(update: interfaces.leaveObject | interfaces.failureObject | interfaces.reJoinObject) {
+    // parse object and add to memdelta for gossip to neighbors
+    const parsed = this.parseUpdate(update)
+    this.memDelta.set(parsed.hash, parsed.array)
+    return
+  }
+
+  removeDelta(update: interfaces.leaveObject | interfaces.failureObject | interfaces.reJoinObject) {
+    // remove an update from the memdelta by hash
+    const hash: string = this.parseUpdate(update).hash
+    this.memDelta.delete(hash)
+    return
+  }
+
+  inMemDelta(update: interfaces.leaveObject | interfaces.failureObject | interfaces.reJoinObject) {
+    // check if an update is in the delta 
+    const hash: string = this.parseUpdate(update).hash
+    return this.memDelta.has(hash)
+  }
+
+  hasDelta() {
+    // check if the delta is empty 
+    if (this.memDelta.size > 0) {
+      return true
+    } else {
+      return false
+    }
+  }
+
+  getDelta() {
+    // returns all the updates in the delta for gossip as an array
+    const deltas: ((string | number)[])[] = []
+    this.memDelta.forEach((delta: (string | number)[], hash: string ) => {
+      deltas.push(delta)
+    })
+    return deltas
+  }
+
+  clearDelta() {
+    // emptys the delta
+    this.memDelta.clear()
+    return
   }
 
 }

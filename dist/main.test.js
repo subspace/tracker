@@ -1,5 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
+// import Tracker from './main'
 // test('sync_method', () => {
 //   expect(members.sync_method()).toBe('hello subspace')
 // })
