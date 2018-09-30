@@ -1,95 +1,146 @@
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-const crypto = require('subspace-crypto').default;
-const profile = require('subspace-profile').default;
-const EventEmitter = require('events');
-class Tracker extends EventEmitter {
-    constructor() {
+Object.defineProperty(exports, "__esModule", { value: true });
+const crypto = require('@subspace/crypto');
+const events_1 = __importDefault(require("events"));
+// TODO
+// implement light_host and light_client trackers
+// implement pending_join protocol for atomic joins
+// implement anti-entropy for periodic comparisons instead of merge
+// implement parsec on failure
+// devise countermeasure to parrallel farming
+class Tracker extends events_1.default {
+    constructor(storage) {
         super();
+        this.init(storage);
     }
-    start(storage) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // decides if to create or load the lht
-            let lht = yield storage.get('lht');
-            if (lht) {
-                this.create_lht();
-            }
-            else {
-                this.load_lht(storage, lht);
-            }
-            setInterval(() => {
-                this.save_lht(storage);
-            }, 6000000); // save every hour
-            return;
-        });
-    }
-    create_lht() {
-        // creates a new lht if one does not exist
-        this.lht = new Map();
-    }
-    load_lht(storage, lht) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // loads the last lht from disk on restart, allowing host to have better knwoledge of gateway nodes
-            this.lht = new Map(lht);
-        });
-    }
-    save_lht(storage) {
-        return __awaiter(this, void 0, void 0, function* () {
-            // persists lht to disk 
-            const lht = Tracker.get_records();
-            yield storage.set('lht', lht);
-            return;
-        });
-    }
-    merge_lhts(lht) {
-        // merges a persisted lht with an lht received from a gateway node
-        const myMap = Tracker.lht;
-        const gatewayMap = new Map(lht);
-        Tracker.lht = new Map([...myMap, ...gatewayMap]);
-    }
-    set_member(nodeId, value) {
-        // add a new member record to the lht on valid join
-        if (nodeId !== profile.hexId) {
-            this.lht.set(nodeId, value);
-            console.log('Added a new member to the LHT');
+    async init(storage) {
+        // decides if to create or load the lht
+        let lht = await storage.get('lht');
+        if (lht) {
+            this.lht = new Map(JSON.parse(lht));
         }
+        else {
+            this.lht = new Map();
+        }
+        setInterval(() => {
+            const string_lht = JSON.stringify([...this.lht]);
+            storage.set('lht', string_lht);
+        }, 6000000); // save every hour
+        return;
     }
-    get_member(nodeId) {
-        // retrieve an existing member record from the LHT by node id
-        const record = this.lht.get(nodeId);
-        return record;
+    addEntry(node_id, join) {
+        // assumes entry is validated in message
+        var entry = {
+            hash: null,
+            public_key: join.public_key,
+            pledge: join.pledge,
+            proof_hash: join.proof_hash,
+            public_ip: join.public_ip,
+            timestamp: join.timestamp,
+            status: true,
+            balance: 0,
+            log: [join]
+        };
+        entry.hash = crypto.getHash(JSON.stringify(entry));
+        this.lht.set(node_id, entry);
+        return;
     }
-    delete_member(nodeId) {
-        // remove an existing member record from the LHT by node id on valid leave or failure
-        this.lht.delete(nodeId);
+    getEntry(node_id) {
+        const entry = this.lht.get(node_id);
+        return entry;
     }
-    has_member(nodeId) {
-        // checks if a member is in the lht 
-        const has = this.lht.has(nodeId);
+    updateEntry(update) {
+        let entry = this.getEntry(update.node_id);
+        if (update.type === 'leave' || update.type === 'failure') {
+            entry.balance += update.timestamp - entry.timestamp;
+            entry.status = false;
+        }
+        else if (update.type === 'rejoin') {
+            entry.status = true;
+        }
+        entry.timestamp = update.timestamp;
+        entry.log.push(update);
+        entry.hash = crypto.getHash(JSON.stringify(entry));
+        this.lht.set(update.node_id, entry);
+        return;
+    }
+    removeEntry(node_id) {
+        // if host expires, when?
+        this.lht.delete(node_id);
+        return;
+    }
+    hasEntry(node_id) {
+        const has = this.lht.has(node_id);
         return has;
     }
-    get_length() {
-        // returns the number of records in the LHT
+    getLength() {
         const length = this.lht.size;
         return length;
     }
-    get_ids() {
+    getNodeIds() {
         // returns an array of all node ids in the lht
-        const ids = [...Tracker.lht.keys()];
-        return ids;
+        const node_ids = [...this.lht.keys()];
+        return node_ids;
     }
-    get_records() {
-        // returns an array of all member records in the lht
-        const records = [...Tracker.lht.entries()];
-    }
-    compute_neighbors() {
+    getNeighbors(my_node_id) {
         // generate an array of node_ids based on the current membership set
+        // default number (N) is log(2)(tracker_length), but no less than four 
+        // for my direct neighbors that I will connect to (first N/2)
+        // hash my id n times where n is neighbor I am selecting in the sequence
+        // find the node closest to my hashed id by XOR
+        // add node_id to my neighbor array 
+        // for my indirect neighbors who will connect to me (second N/2)
+        // hash each node_id n/2 times and compile into a single array
+        // for each element in the array find the closest node_id by XOR
+        // if my id is one of those then add to my neighbor array
+    }
+    parseUpdate(update) {
+        const array = Object.values(update);
+        const arrayString = array.toString();
+        const hash = crypto.getHash(arrayString);
+        return { array, hash };
+    }
+    addDelta(update) {
+        // parse object and add to memdelta for gossip to neighbors
+        const parsed = this.parseUpdate(update);
+        this.memDelta.set(parsed.hash, parsed.array);
+        return;
+    }
+    removeDelta(update) {
+        // remove an update from the memdelta by hash
+        const hash = this.parseUpdate(update).hash;
+        this.memDelta.delete(hash);
+        return;
+    }
+    inMemDelta(update) {
+        // check if an update is in the delta 
+        const hash = this.parseUpdate(update).hash;
+        return this.memDelta.has(hash);
+    }
+    hasDelta() {
+        // check if the delta is empty 
+        if (this.memDelta.size > 0) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    getDelta() {
+        // returns all the updates in the delta for gossip as an array
+        const deltas = [];
+        this.memDelta.forEach((delta, hash) => {
+            deltas.push(delta);
+        });
+        return deltas;
+    }
+    clearDelta() {
+        // emptys the delta
+        this.memDelta.clear();
+        return;
     }
 }
 module.exports = Tracker;
