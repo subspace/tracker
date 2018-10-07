@@ -1,7 +1,7 @@
 const crypto = require('@subspace/crypto')
 import EventEmitter from 'events'
 import * as interfaces from './interfaces'
-import {getClosestIdsByXor} from "@subspace/utils";
+import {getClosestIdByXor} from '@subspace/utils';
 
 
 // TODO
@@ -9,7 +9,7 @@ import {getClosestIdsByXor} from "@subspace/utils";
   // implement pending_join protocol for atomic joins
   // implement anti-entropy for periodic comparisons instead of merge
   // implement parsec on failure
-  // devise countermeasure to parrallel farming
+  // devise countermeasure to parallel farming
 
 class Tracker extends EventEmitter {
   lht: Map <string, interfaces.entryObject>
@@ -116,23 +116,73 @@ class Tracker extends EventEmitter {
       // hash each node_id n/2 times and compile into a single array
       // for each element in the array find the closest node_id by XOR
       // if my id is one of those then add to my neighbor array
-    // TODO: This takes all neighbors from `this.lht`
-    const nodesToReturn = Math.max(
-      4,
-      Math.round(
-        Math.log2(this.getLength())
-      )
-    )
-    // Hack: we mess with `Buffer` because `getClosestIdsByXor()` works with binary `Uint8Array`
-    const ownId = Buffer.from(my_node_id, 'hex')
-    return (
-      getClosestIdsByXor(
-        ownId,
-        this.getNodeIds().map(id => Buffer.from(id, 'hex')),
-        nodesToReturn
-      )
-      .map(id => Buffer.from(id).toString('hex'))
-    )
+    // TODO: Remove HEX encoding/decoding once we move to `Uint8Array`s
+    const ownId = Buffer.from(my_node_id, 'hex');
+    const allNodes = this.getNodeIds().map(id => {
+      return Buffer.from(id, 'hex');
+    });
+
+    const candidates = allNodes.slice();
+    // We take `log2(numberOfNodes)`, but not less than 4 and not more than total number of nodes available
+    const nodesToReturn = Math.min(
+      Math.max(
+        4,
+        Math.round(
+            Math.log2(this.getLength())
+        )
+      ),
+      candidates.length
+    );
+    const halfNodesToReturn = Math.floor(nodesToReturn / 2);
+
+    const closestIds: Uint8Array[] = [];
+
+    let hashedId = ownId;
+    /**
+     * `halfNodesToReturn` closest Ids to my own ID
+     */
+    for (let i = 0; i < halfNodesToReturn; ++i) {
+      hashedId = Buffer.from(crypto.getHash(hashedId.toString('hex')), 'hex');
+      const closest = getClosestIdByXor(hashedId, candidates);
+      closestIds.push(closest);
+      // Remove closest node from future candidates
+      candidates.splice(candidates.indexOf(closest), 1);
+    }
+
+    /**
+     * `halfNodesToReturn` nodes to which my own ID is closest
+     */
+    let hashedCandidates = candidates;
+    const ownIdString = ownId.join(',');
+    // Go at most `halfNodesToReturn` levels deep
+    getNodesNeighbors: for (let i = 0; i < halfNodesToReturn; ++i) {
+      // Hash all of the candidates IDs again in order to go one level deeper
+      hashedCandidates = hashedCandidates.map(candidate => {
+        return Buffer.from(crypto.getHash(candidate.toString('hex')), 'hex');
+      });
+
+      // Check current level for each candidate
+      const length = candidates.length;
+      for (let i = 0; i < length; ++i) {
+        const hashedCandidate = hashedCandidates[i];
+        const closest = getClosestIdByXor(hashedCandidate, allNodes);
+
+        if (closest.join(',') === ownIdString) {
+          closestIds.push(candidates[i]);
+          if (closestIds.length === nodesToReturn) {
+            // We've got enough neighbors, exit
+            break getNodesNeighbors;
+          }
+          // Remove closest node from future candidates
+          hashedCandidates.splice(i, 1);
+        }
+      }
+    }
+
+    return closestIds
+      .map(id => {
+        return Buffer.from(id).toString('hex');
+      });
   }
 
   parseUpdate(update: interfaces.leaveObject | interfaces.failureObject | interfaces.reJoinObject) {
