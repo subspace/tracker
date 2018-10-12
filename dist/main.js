@@ -3,7 +3,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+// import crypto from "@subspace/crypto"
 const crypto = require('@subspace/crypto');
+const utils_1 = require("@subspace/utils");
 const events_1 = __importDefault(require("events"));
 // TODO
 // implement light_host and light_client trackers
@@ -89,15 +91,21 @@ class Tracker extends events_1.default {
     }
     getNeighbors(my_node_id) {
         // generate an array of node_ids based on the current membership set
-        // default number (N) is log(2)(tracker_length), but no less than four 
+        // default number (N) is log(2)(tracker_length), but no less than four
         // for my direct neighbors that I will connect to (first N/2)
         // hash my id n times where n is neighbor I am selecting in the sequence
         // find the node closest to my hashed id by XOR
-        // add node_id to my neighbor array 
+        // add node_id to my neighbor array
         // for my indirect neighbors who will connect to me (second N/2)
         // hash each node_id n/2 times and compile into a single array
         // for each element in the array find the closest node_id by XOR
         // if my id is one of those then add to my neighbor array
+        // TODO: This takes all neighbors from `this.lht`
+        const nodesToReturn = Math.max(4, Math.round(Math.log2(this.getLength())));
+        // Hack: we mess with `Buffer` because `getClosestIdsByXor()` works with binary `Uint8Array`
+        const ownId = Buffer.from(my_node_id, 'hex');
+        return (utils_1.getClosestIdsByXor(ownId, this.getNodeIds().map(id => Buffer.from(id, 'hex')), nodesToReturn)
+            .map(id => Buffer.from(id).toString('hex')));
     }
     parseUpdate(update) {
         const array = Object.values(update);
@@ -118,12 +126,12 @@ class Tracker extends events_1.default {
         return;
     }
     inMemDelta(update) {
-        // check if an update is in the delta 
+        // check if an update is in the delta
         const hash = this.parseUpdate(update).hash;
         return this.memDelta.has(hash);
     }
     hasDelta() {
-        // check if the delta is empty 
+        // check if the delta is empty
         if (this.memDelta.size > 0) {
             return true;
         }

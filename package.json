@@ -13,8 +13,7 @@
     "typescript": "^3.0.1"
   },
   "dependencies": {
-    "@subspace/utils": "github:subspace/utils",
     "@subspace/crypto": "github:subspace/crypto",
-    "@subspace/profile": "github:subspace/profile"
+    "@subspace/utils": "github:subspace/utils"
   }
 }

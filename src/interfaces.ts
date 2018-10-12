@@ -10,6 +10,7 @@ export interface joinObject extends updateObject {
   pledge: number
   proof_hash: string
   public_ip: string
+  isGateway: boolean
   signature: string
 }
 
@@ -43,6 +44,7 @@ export interface entryObject {
   pledge: number
   proof_hash: string
   public_ip: string
+  isGateway: boolean
   timestamp: number
   status: boolean
   uptime: number

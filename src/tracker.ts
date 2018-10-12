@@ -1,6 +1,6 @@
-const crypto = require('@subspace/crypto')
+import crypto from "@subspace/crypto"
 import EventEmitter from 'events'
-import * as interfaces from './interfaces'
+import * as I from './interfaces'
 import {getClosestIdByXor} from '@subspace/utils';
 
 
@@ -11,41 +11,49 @@ import {getClosestIdByXor} from '@subspace/utils';
   // implement parsec on failure
   // devise countermeasure to parallel farming
 
-class Tracker extends EventEmitter {
-  lht: Map <string, interfaces.entryObject>
+export default class Tracker extends EventEmitter {
+  interfaces: any
+  lht: Map <string, I.entryObject>
   memDelta: Map <string, (string | number)[]>
 
-  constructor(storage: any) {
+  constructor(public storage: any) {
     super()
-    this.init(storage)
+    this.interfaces = I
+    this.init()
   }
 
-  private async init (storage: any) {
+  private async init () {
     // decides if to create or load the lht
-    let lht: string = await storage.get('lht')
+    let lht: string = await this.storage.get('lht')
     if (lht) {
-      this.lht = new Map(JSON.parse(lht))
+      this.loadLht(lht)
     } else {
       this.lht = new Map()
     }
 
     setInterval( () => {
       const string_lht: string = JSON.stringify([...this.lht])
-      storage.set('lht', string_lht)
+      this.storage.set('lht', string_lht)
     }, 6000000) // save every hour
 
     return
   }
 
-  addEntry(node_id: string, join: interfaces.joinObject) {
+  public loadLht(lht: any) {
+    this.lht = new Map(JSON.parse(lht))
+    return
+  }
+
+  addEntry(node_id: string, join: I.joinObject) {
     // assumes entry is validated in message
 
-    var entry: interfaces.entryObject = {
+    var entry: I.entryObject = {
       hash: null,
       public_key: join.public_key,
       pledge: join.pledge,
       proof_hash: join.proof_hash,
       public_ip: join.public_ip,
+      isGateway: join.isGateway,
       timestamp: join.timestamp,
       status: true,
       uptime: 0,
@@ -58,11 +66,11 @@ class Tracker extends EventEmitter {
   }
 
   getEntry(node_id: string) {
-    const entry: interfaces.entryObject = this.lht.get(node_id)
+    const entry: I.entryObject = this.lht.get(node_id)
     return entry
   }
 
-  updateEntry(update: interfaces.leaveObject | interfaces.failureObject | interfaces.reJoinObject) {
+  updateEntry(update: I.leaveObject | I.failureObject | I.reJoinObject) {
     let entry = this.getEntry(update.node_id)
 
     if (update.type === 'leave' || update.type === 'failure') {
@@ -185,28 +193,28 @@ class Tracker extends EventEmitter {
       });
   }
 
-  parseUpdate(update: interfaces.leaveObject | interfaces.failureObject | interfaces.reJoinObject) {
+  parseUpdate(update: I.leaveObject | I.failureObject | I.reJoinObject) {
     const array: (string | number)[] = Object.values(update)
     const arrayString: string = array.toString()
     const hash: string = crypto.getHash(arrayString)
     return { array, hash }
   }
 
-  addDelta(update: interfaces.leaveObject | interfaces.failureObject | interfaces.reJoinObject) {
+  addDelta(update: I.leaveObject | I.failureObject | I.reJoinObject) {
     // parse object and add to memdelta for gossip to neighbors
     const parsed = this.parseUpdate(update)
     this.memDelta.set(parsed.hash, parsed.array)
     return
   }
 
-  removeDelta(update: interfaces.leaveObject | interfaces.failureObject | interfaces.reJoinObject) {
+  removeDelta(update: I.leaveObject | I.failureObject | I.reJoinObject) {
     // remove an update from the memdelta by hash
     const hash: string = this.parseUpdate(update).hash
     this.memDelta.delete(hash)
     return
   }
 
-  inMemDelta(update: interfaces.leaveObject | interfaces.failureObject | interfaces.reJoinObject) {
+  inMemDelta(update: I.leaveObject | I.failureObject | I.reJoinObject) {
     // check if an update is in the delta
     const hash: string = this.parseUpdate(update).hash
     return this.memDelta.has(hash)
@@ -237,5 +245,3 @@ class Tracker extends EventEmitter {
   }
 
 }
-
-module.exports = Tracker
