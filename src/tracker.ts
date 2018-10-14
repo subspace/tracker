@@ -1,7 +1,7 @@
-import crypto from "@subspace/crypto"
+import crypto from '@subspace/crypto'
 import EventEmitter from 'events'
-import * as I from './interfaces'
 import {getClosestIdByXor} from '@subspace/utils';
+import {IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IReJoinObject} from "./interfaces";
 
 
 // TODO
@@ -12,13 +12,11 @@ import {getClosestIdByXor} from '@subspace/utils';
   // devise countermeasure to parallel farming
 
 export default class Tracker extends EventEmitter {
-  interfaces: any
-  lht: Map <string, I.entryObject>
+  lht: Map <string, IEntryObject>
   memDelta: Map <string, (string | number)[]>
 
   constructor(public storage: any) {
     super()
-    this.interfaces = I
     this.init()
   }
 
@@ -44,10 +42,10 @@ export default class Tracker extends EventEmitter {
     return
   }
 
-  addEntry(node_id: string, join: I.joinObject) {
+  addEntry(node_id: string, join: IJoinObject) {
     // assumes entry is validated in message
 
-    var entry: I.entryObject = {
+    var entry: IEntryObject = {
       hash: null,
       public_key: join.public_key,
       pledge: join.pledge,
@@ -66,11 +64,11 @@ export default class Tracker extends EventEmitter {
   }
 
   getEntry(node_id: string) {
-    const entry: I.entryObject = this.lht.get(node_id)
+    const entry: IEntryObject = this.lht.get(node_id)
     return entry
   }
 
-  updateEntry(update: I.leaveObject | I.failureObject | I.reJoinObject) {
+  updateEntry(update: ILeaveObject | IFailureObject | IReJoinObject) {
     let entry = this.getEntry(update.node_id)
 
     if (update.type === 'leave' || update.type === 'failure') {
@@ -193,28 +191,28 @@ export default class Tracker extends EventEmitter {
       });
   }
 
-  parseUpdate(update: I.leaveObject | I.failureObject | I.reJoinObject) {
+  parseUpdate(update: ILeaveObject | IFailureObject | IReJoinObject) {
     const array: (string | number)[] = Object.values(update)
     const arrayString: string = array.toString()
     const hash: string = crypto.getHash(arrayString)
     return { array, hash }
   }
 
-  addDelta(update: I.leaveObject | I.failureObject | I.reJoinObject) {
+  addDelta(update: ILeaveObject | IFailureObject | IReJoinObject) {
     // parse object and add to memdelta for gossip to neighbors
     const parsed = this.parseUpdate(update)
     this.memDelta.set(parsed.hash, parsed.array)
     return
   }
 
-  removeDelta(update: I.leaveObject | I.failureObject | I.reJoinObject) {
+  removeDelta(update: ILeaveObject | IFailureObject | IReJoinObject) {
     // remove an update from the memdelta by hash
     const hash: string = this.parseUpdate(update).hash
     this.memDelta.delete(hash)
     return
   }
 
-  inMemDelta(update: I.leaveObject | I.failureObject | I.reJoinObject) {
+  inMemDelta(update: ILeaveObject | IFailureObject | IReJoinObject) {
     // check if an update is in the delta
     const hash: string = this.parseUpdate(update).hash
     return this.memDelta.has(hash)

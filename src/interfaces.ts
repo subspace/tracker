@@ -4,7 +4,7 @@ export interface updateObject {
   timestamp: number
 }
 
-export interface joinObject extends updateObject {
+export interface IJoinObject extends updateObject {
   type: 'join'
   public_key: string
   pledge: number
@@ -14,13 +14,13 @@ export interface joinObject extends updateObject {
   signature: string
 }
 
-export interface leaveObject extends updateObject {
+export interface ILeaveObject extends updateObject {
   type: 'leave'
   previous: string
   signature: string
 }
 
-export interface reJoinObject extends updateObject {
+export interface IReJoinObject extends updateObject {
   type: 'rejoin'
   previous: string
   signature: string
@@ -32,13 +32,13 @@ export interface signatureObject {
   signature: string
 }
 
-export interface failureObject extends updateObject {
+export interface IFailureObject extends updateObject {
   type: 'failure'
   previous: string
   signatures: signatureObject[]
 }
 
-export interface entryObject {
+export interface IEntryObject {
   hash: string
   public_key: string
   pledge: number
@@ -48,6 +48,6 @@ export interface entryObject {
   timestamp: number
   status: boolean
   uptime: number
-  log: (joinObject | leaveObject | reJoinObject | failureObject)[]
+  log: (IJoinObject | ILeaveObject | IReJoinObject | IFailureObject)[]
 }
 
