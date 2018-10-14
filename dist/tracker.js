@@ -2,29 +2,20 @@
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
-    return result;
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const crypto_1 = __importDefault(require("@subspace/crypto"));
-const utils_1 = require("@subspace/utils");
 const events_1 = __importDefault(require("events"));
-const I = __importStar(require("./interfaces"));
+const utils_1 = require("@subspace/utils");
 // TODO
 // implement light_host and light_client trackers
 // implement pending_join protocol for atomic joins
 // implement anti-entropy for periodic comparisons instead of merge
 // implement parsec on failure
-// devise countermeasure to parrallel farming
+// devise countermeasure to parallel farming
 class Tracker extends events_1.default {
     constructor(storage) {
         super();
         this.storage = storage;
-        this.interfaces = I;
         this.init();
     }
     async init() {
@@ -144,7 +135,7 @@ class Tracker extends events_1.default {
         getNodesNeighbors: for (let i = 0; i < halfNodesToReturn; ++i) {
             // Hash all of the candidates IDs again in order to go one level deeper
             hashedCandidates = hashedCandidates.map(candidate => {
-                return Buffer.from(crypto_1.default.getHash(candidate.toString('hex')), 'hex');
+                return Buffer.from(crypto_1.default.getHash(Buffer.from(candidate).toString('hex')), 'hex');
             });
             // Check current level for each candidate
             const length = candidates.length;

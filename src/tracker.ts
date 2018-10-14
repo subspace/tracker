@@ -128,7 +128,7 @@ export default class Tracker extends EventEmitter {
       return Buffer.from(id, 'hex');
     });
 
-    const candidates = allNodes.slice();
+    const candidates: Uint8Array[] = allNodes.slice();
     // We take `log2(numberOfNodes)`, but not less than 4 and not more than total number of nodes available
     const nodesToReturn = Math.min(
       Math.max(
@@ -164,7 +164,7 @@ export default class Tracker extends EventEmitter {
     getNodesNeighbors: for (let i = 0; i < halfNodesToReturn; ++i) {
       // Hash all of the candidates IDs again in order to go one level deeper
       hashedCandidates = hashedCandidates.map(candidate => {
-        return Buffer.from(crypto.getHash(candidate.toString('hex')), 'hex');
+        return Buffer.from(crypto.getHash(Buffer.from(candidate).toString('hex')), 'hex');
       });
 
       // Check current level for each candidate
