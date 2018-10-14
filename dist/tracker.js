@@ -3,34 +3,38 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-// import crypto from "@subspace/crypto"
-const crypto = require('@subspace/crypto');
-const utils_1 = require("@subspace/utils");
+const crypto_1 = __importDefault(require("@subspace/crypto"));
 const events_1 = __importDefault(require("events"));
+const utils_1 = require("@subspace/utils");
 // TODO
 // implement light_host and light_client trackers
 // implement pending_join protocol for atomic joins
 // implement anti-entropy for periodic comparisons instead of merge
 // implement parsec on failure
-// devise countermeasure to parrallel farming
+// devise countermeasure to parallel farming
 class Tracker extends events_1.default {
     constructor(storage) {
         super();
-        this.init(storage);
+        this.storage = storage;
+        this.init();
     }
-    async init(storage) {
+    async init() {
         // decides if to create or load the lht
-        let lht = await storage.get('lht');
+        let lht = await this.storage.get('lht');
         if (lht) {
-            this.lht = new Map(JSON.parse(lht));
+            this.loadLht(lht);
         }
         else {
             this.lht = new Map();
         }
         setInterval(() => {
             const string_lht = JSON.stringify([...this.lht]);
-            storage.set('lht', string_lht);
+            this.storage.set('lht', string_lht);
         }, 6000000); // save every hour
+        return;
+    }
+    loadLht(lht) {
+        this.lht = new Map(JSON.parse(lht));
         return;
     }
     addEntry(node_id, join) {
@@ -41,12 +45,13 @@ class Tracker extends events_1.default {
             pledge: join.pledge,
             proof_hash: join.proof_hash,
             public_ip: join.public_ip,
+            isGateway: join.isGateway,
             timestamp: join.timestamp,
             status: true,
             uptime: 0,
             log: [join]
         };
-        entry.hash = crypto.getHash(JSON.stringify(entry));
+        entry.hash = crypto_1.default.getHash(JSON.stringify(entry));
         this.lht.set(node_id, entry);
         return;
     }
@@ -66,7 +71,7 @@ class Tracker extends events_1.default {
         entry.timestamp = update.timestamp;
         entry.log.push(update);
         entry.hash = null;
-        entry.hash = crypto.getHash(JSON.stringify(entry));
+        entry.hash = crypto_1.default.getHash(JSON.stringify(entry));
         this.lht.set(update.node_id, entry);
         return;
     }
@@ -100,17 +105,63 @@ class Tracker extends events_1.default {
         // hash each node_id n/2 times and compile into a single array
         // for each element in the array find the closest node_id by XOR
         // if my id is one of those then add to my neighbor array
-        // TODO: This takes all neighbors from `this.lht`
-        const nodesToReturn = Math.max(4, Math.round(Math.log2(this.getLength())));
-        // Hack: we mess with `Buffer` because `getClosestIdsByXor()` works with binary `Uint8Array`
+        // TODO: Remove HEX encoding/decoding once we move to `Uint8Array`s
         const ownId = Buffer.from(my_node_id, 'hex');
-        return (utils_1.getClosestIdsByXor(ownId, this.getNodeIds().map(id => Buffer.from(id, 'hex')), nodesToReturn)
-            .map(id => Buffer.from(id).toString('hex')));
+        const allNodes = this.getNodeIds().map(id => {
+            return Buffer.from(id, 'hex');
+        });
+        const candidates = allNodes.slice();
+        // We take `log2(numberOfNodes)`, but not less than 4 and not more than total number of nodes available
+        const nodesToReturn = Math.min(Math.max(4, Math.round(Math.log2(this.getLength()))), candidates.length);
+        const halfNodesToReturn = Math.floor(nodesToReturn / 2);
+        const closestIds = [];
+        let hashedId = ownId;
+        /**
+         * `halfNodesToReturn` closest Ids to my own ID
+         */
+        for (let i = 0; i < halfNodesToReturn; ++i) {
+            hashedId = Buffer.from(crypto_1.default.getHash(hashedId.toString('hex')), 'hex');
+            const closest = utils_1.getClosestIdByXor(hashedId, candidates);
+            closestIds.push(closest);
+            // Remove closest node from future candidates
+            candidates.splice(candidates.indexOf(closest), 1);
+        }
+        /**
+         * `halfNodesToReturn` nodes to which my own ID is closest
+         */
+        let hashedCandidates = candidates;
+        const ownIdString = ownId.join(',');
+        // Go at most `halfNodesToReturn` levels deep
+        getNodesNeighbors: for (let i = 0; i < halfNodesToReturn; ++i) {
+            // Hash all of the candidates IDs again in order to go one level deeper
+            hashedCandidates = hashedCandidates.map(candidate => {
+                return Buffer.from(crypto_1.default.getHash(Buffer.from(candidate).toString('hex')), 'hex');
+            });
+            // Check current level for each candidate
+            const length = candidates.length;
+            for (let i = 0; i < length; ++i) {
+                const hashedCandidate = hashedCandidates[i];
+                const closest = utils_1.getClosestIdByXor(hashedCandidate, allNodes);
+                if (closest.join(',') === ownIdString) {
+                    closestIds.push(candidates[i]);
+                    if (closestIds.length === nodesToReturn) {
+                        // We've got enough neighbors, exit
+                        break getNodesNeighbors;
+                    }
+                    // Remove closest node from future candidates
+                    hashedCandidates.splice(i, 1);
+                }
+            }
+        }
+        return closestIds
+            .map(id => {
+            return Buffer.from(id).toString('hex');
+        });
     }
     parseUpdate(update) {
         const array = Object.values(update);
         const arrayString = array.toString();
-        const hash = crypto.getHash(arrayString);
+        const hash = crypto_1.default.getHash(arrayString);
         return { array, hash };
     }
     addDelta(update) {
@@ -153,5 +204,5 @@ class Tracker extends events_1.default {
         return;
     }
 }
-module.exports = Tracker;
-//# sourceMappingURL=main.js.map
+exports.default = Tracker;
+//# sourceMappingURL=tracker.js.map
