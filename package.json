@@ -1,7 +1,7 @@
 {
   "name": "@subspace/tracker",
   "version": "1.0.0",
-  "main": "dist/main.js",
+  "main": "dist/tracker.js",
   "author": "subspace",
   "license": "MIT",
   "private": true,
