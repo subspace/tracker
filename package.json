@@ -2,6 +2,7 @@
   "name": "@subspace/tracker",
   "version": "1.0.0",
   "main": "dist/tracker.js",
+  "types": "dist/tracker.d.ts",
   "author": "subspace",
   "license": "MIT",
   "private": true,
