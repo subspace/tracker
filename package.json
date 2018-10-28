@@ -2,7 +2,11 @@
   "name": "@subspace/tracker",
   "version": "1.0.0",
   "main": "dist/tracker.js",
+<<<<<<< HEAD
   "types": "dist/ledger.d.ts",
+=======
+  "types": "dist/tracker.d.ts",
+>>>>>>> f42946c51c400734773fc26342ce60af7dff048b
   "author": "subspace",
   "license": "MIT",
   "private": true,
