@@ -8,6 +8,8 @@ export declare class Tracker extends EventEmitter {
     storage: Storage;
     wallet: Wallet;
     ledger: Ledger;
+    validJoins: Set<string>;
+    inValidJoins: Set<string>;
     lht: Map<string, IEntryObject>;
     memDelta: Map<string, (string | number)[]>;
     constructor(storage: Storage, wallet: Wallet, ledger: Ledger);

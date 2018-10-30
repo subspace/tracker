@@ -7,6 +7,10 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
+    "@subspace/database": "github:subspace/database",
+    "@subspace/ledger": "github:subspace/ledger",
+    "@subspace/storage": "github:subspace/storage",
+    "@subspace/wallet": "github:subspace/wallet",
     "@types/jest": "^23.3.1",
     "@types/node": "^10.9.2",
     "jest": "^23.5.0",
@@ -15,11 +19,6 @@
   },
   "dependencies": {
     "@subspace/crypto": "github:subspace/crypto",
-    "@subspace/database": "github:subspace/database",
-    "@subspace/ledger": "github:subspace/ledger",
-    "@subspace/storage": "github:subspace/storage",
-    "@subspace/tracker": "github:subspace/tracker",
-    "@subspace/utils": "github:subspace/utils",
-    "@subspace/wallet": "github:subspace/wallet"
+    "@subspace/utils": "github:subspace/utils"
   }
 }

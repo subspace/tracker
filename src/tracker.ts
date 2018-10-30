@@ -7,7 +7,6 @@ import {Ledger} from '@subspace/ledger'
 import {DataBase, Record, IValue} from '@subspace/database'
 import Storage from '@subspace/storage'
 
-
 // TODO
   // implement light_host and light_client trackers
   // implement pending_join protocol for atomic joins
@@ -16,6 +15,8 @@ import Storage from '@subspace/storage'
   // devise countermeasure to parallel farming
 
 export class Tracker extends EventEmitter {
+  validJoins: Set<string>
+  inValidJoins: Set<string>
   lht: Map <string, IEntryObject>
   memDelta: Map <string, (string | number)[]>
 

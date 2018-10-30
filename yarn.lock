@@ -76,13 +76,6 @@
     localforage "^1.7.2"
     node-persist "^3.0.1"
 
-"@subspace/tracker@github:subspace/tracker":
-  version "1.0.0"
-  resolved "git+ssh://git@github.com/subspace/tracker.git#32f4d31f6ec3d097b44b453a4577cdd3a48a433a"
-  dependencies:
-    "@subspace/crypto" "github:subspace/crypto"
-    "@subspace/utils" "github:subspace/utils"
-
 "@subspace/utils@github:subspace/utils":
   version "0.0.2"
   resolved "git+ssh://git@github.com/subspace/utils.git#00afbeef2922cea8b2ac72c0507c60b79a6e343f"
