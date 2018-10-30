@@ -1,54 +1,55 @@
-export interface updateObject {
+export interface IUpdateObject {
   type: 'join' | 'leave' | 'failure' | 'rejoin'
-  node_id: string
+  nodeId: string
   timestamp: number
 }
 
-export interface IJoinObject extends updateObject {
+export interface IJoinObject extends IUpdateObject {
   type: 'join'
-  public_key: string
+  publicKey: string
   pledge: number
-  proof_hash: string
-  public_ip: string
+  proofHash: string
+  publicIp: string
   isGateway: boolean
   signature: string
 }
 
-export interface ILeaveObject extends updateObject {
+export interface ILeaveObject extends IUpdateObject {
   type: 'leave'
   previous: string
   signature: string
 }
 
-export interface IReJoinObject extends updateObject {
+export interface IReJoinObject extends IUpdateObject {
   type: 'rejoin'
   previous: string
   signature: string
 }
 
-export interface signatureObject {
-  node_id: string
+export interface ISignatureObject {
+  nodeId: string
   timestamp: number
   signature: string
 }
 
-export interface IFailureObject extends updateObject {
+export interface IFailureObject extends IUpdateObject {
   type: 'failure'
   previous: string
-  signatures: signatureObject[]
+  signatures: ISignatureObject[]
 }
 
 export interface IEntryObject {
-  hash: string
-  public_key: string
-  pledge: number
-  proof_hash: string
-  public_ip: string
-  isGateway: boolean
-  timestamp: number
-  status: boolean
-  uptime: number
+  hash: string        // entry hash (for creating a merkle tree)
+  publicKey: string   // public key of host
+  pledge: number      // space pledged by host
+  proofHash: string   // hash of proof of space
+  publicIp: string    // publicIP of host
+  isGateway: boolean  
+  timestamp: number   // when joined
+  status: boolean     // on or off the network
+  uptime: number      // cumulative uptime in ms
   log: (IJoinObject | ILeaveObject | IReJoinObject | IFailureObject)[]
+  // activity log for host during this interval 
 }
 
 export interface IMessage {

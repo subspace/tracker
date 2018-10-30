@@ -1,43 +1,43 @@
-export interface updateObject {
+export interface IUpdateObject {
     type: 'join' | 'leave' | 'failure' | 'rejoin';
-    node_id: string;
+    nodeId: string;
     timestamp: number;
 }
-export interface IJoinObject extends updateObject {
+export interface IJoinObject extends IUpdateObject {
     type: 'join';
-    public_key: string;
+    publicKey: string;
     pledge: number;
-    proof_hash: string;
-    public_ip: string;
+    proofHash: string;
+    publicIp: string;
     isGateway: boolean;
     signature: string;
 }
-export interface ILeaveObject extends updateObject {
+export interface ILeaveObject extends IUpdateObject {
     type: 'leave';
     previous: string;
     signature: string;
 }
-export interface IReJoinObject extends updateObject {
+export interface IReJoinObject extends IUpdateObject {
     type: 'rejoin';
     previous: string;
     signature: string;
 }
-export interface signatureObject {
-    node_id: string;
+export interface ISignatureObject {
+    nodeId: string;
     timestamp: number;
     signature: string;
 }
-export interface IFailureObject extends updateObject {
+export interface IFailureObject extends IUpdateObject {
     type: 'failure';
     previous: string;
-    signatures: signatureObject[];
+    signatures: ISignatureObject[];
 }
 export interface IEntryObject {
     hash: string;
-    public_key: string;
+    publicKey: string;
     pledge: number;
-    proof_hash: string;
-    public_ip: string;
+    proofHash: string;
+    publicIp: string;
     isGateway: boolean;
     timestamp: number;
     status: boolean;

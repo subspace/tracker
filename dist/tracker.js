@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const crypto_1 = __importDefault(require("@subspace/crypto"));
 const events_1 = __importDefault(require("events"));
 const utils_1 = require("@subspace/utils");
+const database_1 = require("@subspace/database");
 // TODO
 // implement light_host and light_client trackers
 // implement pending_join protocol for atomic joins
@@ -13,10 +14,11 @@ const utils_1 = require("@subspace/utils");
 // implement parsec on failure
 // devise countermeasure to parallel farming
 class Tracker extends events_1.default {
-    constructor(storage, wallet) {
+    constructor(storage, wallet, ledger) {
         super();
         this.storage = storage;
         this.wallet = wallet;
+        this.ledger = ledger;
         this.init();
     }
     async init() {
@@ -29,61 +31,167 @@ class Tracker extends events_1.default {
             this.lht = new Map();
         }
         setInterval(() => {
-            const string_lht = JSON.stringify([...this.lht]);
-            this.storage.set('lht', string_lht);
+            this.storage.put('lht', JSON.stringify([...this.lht]));
         }, 6000000); // save every hour
         return;
     }
     loadLht(lht) {
         this.lht = new Map(JSON.parse(lht));
-        return;
     }
+    // host messages and validation
     async createPendingJoinMessage() {
         const profile = this.wallet.getProfile();
+        const pledgeTxId = this.wallet.profile.pledge.pledgeTx;
         let message = {
             version: 0,
             type: 'host-join',
             sender: profile.id,
             timestamp: Date.now(),
             publicKey: profile.publicKey,
+            data: pledgeTxId,
             signature: null
         };
         message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
         return message;
     }
-    async createFullJoinmessage() {
+    async isValidPendingJoinMessage(message) {
+        // validate a pending join message received via gossip 
+        const pledgeId = message.data;
+        const test = {
+            valid: false,
+            reason: null
+        };
+        // validate the timestamp 
+        if (!crypto_1.default.isDateWithinRange(message.timestamp, 600000)) {
+            test.reason = 'Invalid pending join, timestamp out of range';
+            return test;
+        }
+        // ensure the pledge tx has been published
+        let txRecordValue = JSON.parse(await this.storage.get(pledgeId));
+        let txRecord = null;
+        if (!txRecordValue) {
+            txRecordValue = this.ledger.validTxs.get(message.data);
+            if (!txRecordValue) {
+                test.reason = 'Invalid pending join, cannot locate pledge tx';
+                return test;
+            }
+        }
+        txRecord = database_1.Record.readPacked(pledgeId, txRecordValue);
+        await txRecord.unpack(null);
+        // ensure the pledge tx is a pledge tx
+        if (!(txRecord.value.content.type === 'pledge')) {
+            test.reason = 'Invalid pending join, host is not referencing a pledge tx';
+        }
+        // validate the host matches the pledge tx 
+        if (!(txRecord.value.publicKey === message.publicKey)) {
+            test.reason = 'Invalid pending join, host does not match pledge';
+            return test;
+        }
+        // validate the signature
+        if (!await crypto_1.default.isValidMessageSignature(message)) {
+            test.reason = 'Invalid pending join, timestamp out of range';
+            return test;
+        }
+        test.valid = true;
+        return true;
+    }
+    async createInitialJoinMessage(publicIP, isGateway) {
         const profile = this.wallet.getProfile();
+        const pledge = this.wallet.profile.pledge;
+        const join = {
+            type: 'join',
+            nodeId: profile.id,
+            publicKey: profile.publicKey,
+            pledge: pledge.size,
+            proofHash: pledge.proof,
+            publicIp: publicIP,
+            isGateway: isGateway,
+            timestamp: Date.now(),
+            signature: null
+        };
+        join.signature = await crypto_1.default.sign(join, profile.privateKeyObject);
         let message = {
             version: 0,
             type: 'host-full-join',
             sender: profile.id,
             timestamp: Date.now(),
             publicKey: profile.publicKey,
+            data: join,
             signature: null
         };
         message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
         return message;
     }
+    async isValidInitialJoinMessage() {
+    }
+    async createRejoinMessage() {
+        const profile = this.wallet.getProfile();
+        const rejoin = {
+            type: 'rejoin',
+            nodeId: profile.id,
+            previous: null,
+            timestamp: Date.now(),
+            signature: null
+        };
+        rejoin.signature = await crypto_1.default.sign(rejoin, profile.privateKeyObject);
+        let message = {
+            version: 0,
+            type: 'host-full-join',
+            sender: profile.id,
+            timestamp: Date.now(),
+            publicKey: profile.publicKey,
+            data: rejoin,
+            signature: null
+        };
+        message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
+        return message;
+    }
+    async isValidRejoinMessage() {
+    }
     async createLeaveMessage() {
         const profile = this.wallet.getProfile();
+        const leave = {
+            type: 'leave',
+            nodeId: profile.id,
+            previous: null,
+            timestamp: Date.now(),
+            signature: null
+        };
+        leave.signature = await crypto_1.default.sign(leave, profile.privateKeyObject);
         let message = {
             version: 0,
             type: 'host-leave',
             sender: profile.id,
             timestamp: Date.now(),
             publicKey: profile.publicKey,
+            data: leave,
             signature: null
         };
         message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
         return message;
     }
-    async createFailureMessage(host) {
+    async isValidLeaveMessage() {
+    }
+    async createFailureMessage() {
         const profile = this.wallet.getProfile();
+        const failure = {
+            type: 'failure',
+            nodeId: profile.id,
+            previous: null,
+            timestamp: Date.now(),
+            signatures: []
+        };
+        const signatureObject = {
+            nodeId: profile.id,
+            timestamp: Date.now(),
+            signature: await crypto_1.default.sign(failure, profile.privateKeyObject)
+        };
+        failure.signatures.push(signatureObject);
         let message = {
             version: 0,
             type: 'host-failure',
             sender: profile.id,
-            data: host,
+            data: failure,
             timestamp: Date.now(),
             publicKey: profile.publicKey,
             signature: null
@@ -91,19 +199,42 @@ class Tracker extends events_1.default {
         message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
         return message;
     }
+    async signFailureMessage(failureMessage) {
+        const profile = this.wallet.getProfile();
+        const signatureObject = {
+            nodeId: profile.id,
+            timestamp: Date.now(),
+            signature: await crypto_1.default.sign(failureMessage, profile.privateKeyObject)
+        };
+        failureMessage.signatures.push(signatureObject);
+        let message = {
+            version: 0,
+            type: 'host-failure',
+            sender: profile.id,
+            data: failureMessage,
+            timestamp: Date.now(),
+            publicKey: profile.publicKey,
+            signature: null
+        };
+        message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
+        return message;
+    }
+    async isValidFailureMessage() {
+    }
     async isValidHostMessage(message) {
         const unsignedMessage = Object.assign({}, message);
         unsignedMessage.signature = null;
         return await crypto_1.default.isValidSignature(unsignedMessage, message.signature, message.publicKey);
     }
+    // LHT (tracker proper) methods
     addEntry(node_id, join) {
         // assumes entry is validated in message
         var entry = {
             hash: null,
-            public_key: join.public_key,
+            publicKey: join.publicKey,
             pledge: join.pledge,
-            proof_hash: join.proof_hash,
-            public_ip: join.public_ip,
+            proofHash: join.proofHash,
+            publicIp: join.publicIp,
             isGateway: join.isGateway,
             timestamp: join.timestamp,
             status: true,
@@ -112,14 +243,12 @@ class Tracker extends events_1.default {
         };
         entry.hash = crypto_1.default.getHash(JSON.stringify(entry));
         this.lht.set(node_id, entry);
-        return;
     }
     getEntry(node_id) {
-        const entry = this.lht.get(node_id);
-        return entry;
+        return this.lht.get(node_id);
     }
     updateEntry(update) {
-        let entry = this.getEntry(update.node_id);
+        let entry = this.getEntry(update.nodeId);
         if (update.type === 'leave' || update.type === 'failure') {
             entry.uptime += update.timestamp - entry.timestamp;
             entry.status = false;
@@ -131,29 +260,23 @@ class Tracker extends events_1.default {
         entry.log.push(update);
         entry.hash = null;
         entry.hash = crypto_1.default.getHash(JSON.stringify(entry));
-        this.lht.set(update.node_id, entry);
-        return;
+        this.lht.set(update.nodeId, entry);
     }
-    removeEntry(node_id) {
+    removeEntry(nodeId) {
         // if host expires, when?
-        this.lht.delete(node_id);
-        return;
+        this.lht.delete(nodeId);
     }
-    hasEntry(node_id) {
-        const has = this.lht.has(node_id);
-        return has;
+    hasEntry(nodeId) {
+        return this.lht.has(nodeId);
     }
     getLength() {
-        const length = this.lht.size;
-        return length;
+        return this.lht.size;
     }
     getNodeIds() {
         // returns an array of all node ids in the lht
-        const node_ids = [...this.lht.keys()];
-        // const node_ids = this.lht.keys() // alternative way
-        return node_ids;
+        return [...this.lht.keys()];
     }
-    getNeighbors(my_node_id) {
+    getNeighbors(myNodeIds) {
         // generate an array of node_ids based on the current membership set
         // default number (N) is log(2)(tracker_length), but no less than four
         // for my direct neighbors that I will connect to (first N/2)
@@ -165,7 +288,7 @@ class Tracker extends events_1.default {
         // for each element in the array find the closest node_id by XOR
         // if my id is one of those then add to my neighbor array
         // TODO: Remove HEX encoding/decoding once we move to `Uint8Array`s
-        const ownId = Buffer.from(my_node_id, 'hex');
+        const ownId = Buffer.from(myNodeIds, 'hex');
         const allNodes = this.getNodeIds().map(id => {
             return Buffer.from(id, 'hex');
         });
@@ -217,6 +340,7 @@ class Tracker extends events_1.default {
             return Buffer.from(id).toString('hex');
         });
     }
+    // memDelta methods
     parseUpdate(update) {
         const array = Object.values(update);
         const arrayString = array.toString();
@@ -227,27 +351,18 @@ class Tracker extends events_1.default {
         // parse object and add to memdelta for gossip to neighbors
         const parsed = this.parseUpdate(update);
         this.memDelta.set(parsed.hash, parsed.array);
-        return;
     }
     removeDelta(update) {
         // remove an update from the memdelta by hash
-        const hash = this.parseUpdate(update).hash;
-        this.memDelta.delete(hash);
-        return;
+        return this.memDelta.delete(this.parseUpdate(update).hash);
     }
     inMemDelta(update) {
         // check if an update is in the delta
-        const hash = this.parseUpdate(update).hash;
-        return this.memDelta.has(hash);
+        return this.memDelta.has(this.parseUpdate(update).hash);
     }
     hasDelta() {
         // check if the delta is empty
-        if (this.memDelta.size > 0) {
-            return true;
-        }
-        else {
-            return false;
-        }
+        return this.memDelta.size > 0;
     }
     getDelta() {
         // returns all the updates in the delta for gossip as an array
@@ -260,8 +375,7 @@ class Tracker extends events_1.default {
     clearDelta() {
         // emptys the delta
         this.memDelta.clear();
-        return;
     }
 }
-exports.default = Tracker;
+exports.Tracker = Tracker;
 //# sourceMappingURL=tracker.js.map

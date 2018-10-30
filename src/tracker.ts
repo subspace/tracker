@@ -1,7 +1,11 @@
 import crypto from '@subspace/crypto'
 import EventEmitter from 'events'
 import {getClosestIdByXor} from '@subspace/utils';
-import {IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IReJoinObject, IHostMessage} from "./interfaces";
+import {IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IReJoinObject, IHostMessage, ISignatureObject} from "./interfaces"
+import Wallet from '@subspace/wallet'
+import {Ledger} from '@subspace/ledger'
+import {DataBase, Record, IValue} from '@subspace/database'
+import Storage from '@subspace/storage'
 
 
 // TODO
@@ -11,13 +15,14 @@ import {IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IReJoinObject, 
   // implement parsec on failure
   // devise countermeasure to parallel farming
 
-export default class Tracker extends EventEmitter {
+export class Tracker extends EventEmitter {
   lht: Map <string, IEntryObject>
   memDelta: Map <string, (string | number)[]>
 
   constructor(
-    public storage: any,
-    public wallet: any
+    public storage: Storage,
+    public wallet: Wallet,
+    public ledger: Ledger
   ) {
     super()
     this.init()
@@ -25,7 +30,7 @@ export default class Tracker extends EventEmitter {
 
   private async init () {
     // decides if to create or load the lht
-    let lht: string = await this.storage.get('lht')
+    let lht = await this.storage.get('lht')
     if (lht) {
       this.loadLht(lht)
     } else {
@@ -33,48 +38,161 @@ export default class Tracker extends EventEmitter {
     }
 
     setInterval( () => {
-      const string_lht: string = JSON.stringify([...this.lht])
-      this.storage.set('lht', string_lht)
+      this.storage.put('lht', JSON.stringify([...this.lht]))
     }, 6000000) // save every hour
 
     return
   }
 
-  public loadLht(lht: any) {
+  public loadLht(lht: string) {
     this.lht = new Map(JSON.parse(lht))
-    return
   }
+
+  // host messages and validation
 
   public async createPendingJoinMessage() {
     const profile = this.wallet.getProfile()
+    const pledgeTxId = this.wallet.profile.pledge.pledgeTx
+
     let message: IHostMessage = {
       version: 0,
       type: 'host-join',
       sender: profile.id,
       timestamp: Date.now(),
       publicKey: profile.publicKey,
+      data: pledgeTxId,
       signature: null
     }
     message.signature = await crypto.sign(message, profile.privateKeyObject)
     return message
   }
 
-  public async createFullJoinmessage() {
+  public async isValidPendingJoinMessage(message: IHostMessage) {
+    // validate a pending join message received via gossip 
+    const pledgeId: string = message.data
+    const test = {
+      valid: false,
+      reason: <string> null
+    }
+
+    // validate the timestamp 
+    if (! crypto.isDateWithinRange(message.timestamp, 600000)) {
+      test.reason = 'Invalid pending join, timestamp out of range'
+      return test
+    }
+
+    // ensure the pledge tx has been published
+    let txRecordValue: IValue = JSON.parse( await this.storage.get(pledgeId))
+    let txRecord: Record = null
+    if (!txRecordValue) {
+      txRecordValue = this.ledger.validTxs.get(message.data)
+      if (!txRecordValue) {
+        test.reason = 'Invalid pending join, cannot locate pledge tx'
+        return test
+      }
+    }
+    txRecord = Record.readPacked(pledgeId, txRecordValue)
+    await txRecord.unpack(null)
+
+    // ensure the pledge tx is a pledge tx
+    if (!(txRecord.value.content.type === 'pledge')) {
+      test.reason = 'Invalid pending join, host is not referencing a pledge tx'
+    }
+
+    // validate the host matches the pledge tx 
+    if (!(txRecord.value.publicKey === message.publicKey)) {
+      test.reason = 'Invalid pending join, host does not match pledge'
+      return test
+    }
+
+    // validate the signature
+    if (! await crypto.isValidMessageSignature(message)) {
+      test.reason = 'Invalid pending join, timestamp out of range'
+      return test
+    }
+
+    test.valid = true
+    return true
+  }
+
+  public async createInitialJoinMessage(publicIP: string, isGateway: boolean) {
     const profile = this.wallet.getProfile()
+    const pledge = this.wallet.profile.pledge
+
+    const join: IJoinObject = {
+      type: 'join',
+      nodeId: profile.id,
+      publicKey: profile.publicKey,
+      pledge: pledge.size,
+      proofHash: pledge.proof,
+      publicIp: publicIP, 
+      isGateway: isGateway,
+      timestamp: Date.now(),
+      signature: null
+    }
+
+    join.signature = await crypto.sign(join, profile.privateKeyObject)
+ 
     let message: IHostMessage = {
       version: 0,
       type: 'host-full-join',
       sender: profile.id,
       timestamp: Date.now(),
       publicKey: profile.publicKey,
+      data: <IJoinObject> join,
+      signature: null
+    }
+
+    message.signature = await crypto.sign(message, profile.privateKeyObject)
+    return message
+  }
+
+  public async isValidInitialJoinMessage() {
+
+  }
+
+  public async createRejoinMessage() {
+    const profile = this.wallet.getProfile()
+
+    const rejoin: IReJoinObject = {
+      type: 'rejoin',
+      nodeId: profile.id,
+      previous: null,
+      timestamp: Date.now(),
+      signature: null
+    }
+
+    rejoin.signature = await crypto.sign(rejoin, profile.privateKeyObject)
+
+    let message: IHostMessage = {
+      version: 0,
+      type: 'host-full-join',
+      sender: profile.id,
+      timestamp: Date.now(),
+      publicKey: profile.publicKey,
+      data: <IReJoinObject> rejoin,
       signature: null
     }
     message.signature = await crypto.sign(message, profile.privateKeyObject)
     return message
   }
 
+  public async isValidRejoinMessage() {
+
+  }
+
   public async createLeaveMessage() {
     const profile = this.wallet.getProfile()
+
+    const leave: ILeaveObject = {
+      type: 'leave',
+      nodeId: profile.id,
+      previous: null,
+      timestamp: Date.now(),
+      signature: null
+    }
+
+    leave.signature = await crypto.sign(leave, profile.privateKeyObject)
 
     let message: IHostMessage = {
       version: 0,
@@ -82,26 +200,75 @@ export default class Tracker extends EventEmitter {
       sender: profile.id,
       timestamp: Date.now(),
       publicKey: profile.publicKey,
+      data: <ILeaveObject> leave,
       signature: null
     }
     message.signature = await crypto.sign(message, profile.privateKeyObject)
     return message
   }
 
-  public async createFailureMessage(host: string) {
+  public async isValidLeaveMessage() {
+
+  }
+
+  public async createFailureMessage() {
     const profile = this.wallet.getProfile()
+
+    const failure: IFailureObject = {
+      type: 'failure',
+      nodeId: profile.id,
+      previous: null,
+      timestamp: Date.now(),
+      signatures: []
+    }
+
+    const signatureObject: ISignatureObject = {
+      nodeId: profile.id,
+      timestamp: Date.now(),
+      signature: await crypto.sign(failure, profile.privateKeyObject)
+    }
+
+    failure.signatures.push(signatureObject)
 
     let message: IHostMessage = {
       version: 0,
       type: 'host-failure',
       sender: profile.id,
-      data: host,
+      data: <IFailureObject> failure,
       timestamp: Date.now(),
       publicKey: profile.publicKey,
       signature: null
     }
     message.signature = await crypto.sign(message, profile.privateKeyObject)
     return message
+  }
+
+  public async signFailureMessage(failureMessage: IFailureObject) {
+    const profile = this.wallet.getProfile()
+
+    const signatureObject: ISignatureObject = {
+      nodeId: profile.id,
+      timestamp: Date.now(),
+      signature: await crypto.sign(failureMessage, profile.privateKeyObject)
+    }
+
+    failureMessage.signatures.push(signatureObject)
+
+    let message: IHostMessage = {
+      version: 0,
+      type: 'host-failure',
+      sender: profile.id,
+      data: <IFailureObject> failureMessage,
+      timestamp: Date.now(),
+      publicKey: profile.publicKey,
+      signature: null
+    }
+    message.signature = await crypto.sign(message, profile.privateKeyObject)
+    return message
+  }
+
+  public async isValidFailureMessage() {
+
   }
 
   public async isValidHostMessage(message: IHostMessage) {
@@ -110,15 +277,17 @@ export default class Tracker extends EventEmitter {
     return await crypto.isValidSignature(unsignedMessage, message.signature, message.publicKey)
   }
 
+  // LHT (tracker proper) methods
+
   addEntry(node_id: string, join: IJoinObject) {
     // assumes entry is validated in message
 
     var entry: IEntryObject = {
       hash: null,
-      public_key: join.public_key,
+      publicKey: join.publicKey,
       pledge: join.pledge,
-      proof_hash: join.proof_hash,
-      public_ip: join.public_ip,
+      proofHash: join.proofHash,
+      publicIp: join.publicIp,
       isGateway: join.isGateway,
       timestamp: join.timestamp,
       status: true,
@@ -128,16 +297,14 @@ export default class Tracker extends EventEmitter {
 
     entry.hash = crypto.getHash(JSON.stringify(entry))
     this.lht.set(node_id, entry)
-    return
   }
 
   getEntry(node_id: string) {
-    const entry: IEntryObject = this.lht.get(node_id)
-    return entry
+    return this.lht.get(node_id)
   }
 
   updateEntry(update: ILeaveObject | IFailureObject | IReJoinObject) {
-    let entry = this.getEntry(update.node_id)
+    let entry = this.getEntry(update.nodeId)
 
     if (update.type === 'leave' || update.type === 'failure') {
       entry.uptime += update.timestamp - entry.timestamp
@@ -150,36 +317,29 @@ export default class Tracker extends EventEmitter {
     entry.log.push(update)
     entry.hash = null
     entry.hash = crypto.getHash(JSON.stringify(entry))
-    this.lht.set(update.node_id, entry)
-    return
-
+    this.lht.set(update.nodeId, entry)
   }
 
-  removeEntry(node_id: string) {
+  removeEntry(nodeId: string) {
     // if host expires, when?
 
-    this.lht.delete(node_id)
-    return
+    this.lht.delete(nodeId)
   }
 
-  hasEntry(node_id: string) {
-    const has = this.lht.has(node_id)
-    return has
+  hasEntry(nodeId: string) {
+    return this.lht.has(nodeId)
   }
 
   getLength() {
-    const length = this.lht.size
-    return length
+    return this.lht.size
   }
 
   getNodeIds() {
     // returns an array of all node ids in the lht
-    const node_ids: string[] = [...this.lht.keys()]
-    // const node_ids = this.lht.keys() // alternative way
-    return node_ids
+    return [...this.lht.keys()]
   }
 
-  getNeighbors(my_node_id: string): string[] {
+  getNeighbors(myNodeIds: string): string[] {
     // generate an array of node_ids based on the current membership set
     // default number (N) is log(2)(tracker_length), but no less than four
     // for my direct neighbors that I will connect to (first N/2)
@@ -191,7 +351,7 @@ export default class Tracker extends EventEmitter {
       // for each element in the array find the closest node_id by XOR
       // if my id is one of those then add to my neighbor array
     // TODO: Remove HEX encoding/decoding once we move to `Uint8Array`s
-    const ownId = Buffer.from(my_node_id, 'hex');
+    const ownId = Buffer.from(myNodeIds, 'hex');
     const allNodes = this.getNodeIds().map(id => {
       return Buffer.from(id, 'hex');
     });
@@ -259,6 +419,8 @@ export default class Tracker extends EventEmitter {
       });
   }
 
+  // memDelta methods
+
   parseUpdate(update: ILeaveObject | IFailureObject | IReJoinObject) {
     const array: (string | number)[] = Object.values(update)
     const arrayString: string = array.toString()
@@ -270,29 +432,21 @@ export default class Tracker extends EventEmitter {
     // parse object and add to memdelta for gossip to neighbors
     const parsed = this.parseUpdate(update)
     this.memDelta.set(parsed.hash, parsed.array)
-    return
   }
 
   removeDelta(update: ILeaveObject | IFailureObject | IReJoinObject) {
     // remove an update from the memdelta by hash
-    const hash: string = this.parseUpdate(update).hash
-    this.memDelta.delete(hash)
-    return
+    return this.memDelta.delete(this.parseUpdate(update).hash)
   }
 
   inMemDelta(update: ILeaveObject | IFailureObject | IReJoinObject) {
     // check if an update is in the delta
-    const hash: string = this.parseUpdate(update).hash
-    return this.memDelta.has(hash)
+    return this.memDelta.has(this.parseUpdate(update).hash)
   }
 
   hasDelta() {
     // check if the delta is empty
-    if (this.memDelta.size > 0) {
-      return true
-    } else {
-      return false
-    }
+    return this.memDelta.size > 0
   }
 
   getDelta() {
@@ -307,7 +461,6 @@ export default class Tracker extends EventEmitter {
   clearDelta() {
     // emptys the delta
     this.memDelta.clear()
-    return
   }
 
 }
