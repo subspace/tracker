@@ -1,7 +1,7 @@
 import crypto from '@subspace/crypto'
 import EventEmitter from 'events'
 import {getClosestIdByXor} from '@subspace/utils';
-import {IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IReJoinObject} from "./interfaces";
+import {IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IReJoinObject, IHostLeaveMessage} from "./interfaces";
 
 
 // TODO
@@ -15,7 +15,10 @@ export default class Tracker extends EventEmitter {
   lht: Map <string, IEntryObject>
   memDelta: Map <string, (string | number)[]>
 
-  constructor(public storage: any) {
+  constructor(
+    public storage: any,
+    public wallet: any
+  ) {
     super()
     this.init()
   }
@@ -40,6 +43,37 @@ export default class Tracker extends EventEmitter {
   public loadLht(lht: any) {
     this.lht = new Map(JSON.parse(lht))
     return
+  }
+
+  public async createPendingJoinMessage() {
+
+  }
+
+  public async createFullJoinmessage() {
+
+  }
+
+  public async createLeaveMessage() {
+
+  }
+
+  public async createFailureMessage() {
+    
+  }
+
+  private async createHostLeaveMessage(): Promise<IHostLeaveMessage> {
+    const profile = this.wallet.getProfile()
+
+    let message: IHostLeaveMessage = {
+      version: 0,
+      type: 'host-leave',
+      sender: profile.id,
+      timestamp: Date.now(),
+      publicKey: profile.publicKey,
+      signature: null
+    }
+    message.signature = await crypto.sign(message, profile.privateKeyObject)
+    return message
   }
 
   addEntry(node_id: string, join: IJoinObject) {

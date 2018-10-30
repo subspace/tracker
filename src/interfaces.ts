@@ -51,3 +51,16 @@ export interface IEntryObject {
   log: (IJoinObject | ILeaveObject | IReJoinObject | IFailureObject)[]
 }
 
+export interface IMessage {
+  version: number
+  type: string
+  timestamp: number
+  sender: string
+  publicKey: string
+  signature: string | null
+}
+
+export interface IHostLeaveMessage extends IMessage {
+  type: 'host-leave'
+}
+

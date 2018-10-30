@@ -13,9 +13,10 @@ const utils_1 = require("@subspace/utils");
 // implement parsec on failure
 // devise countermeasure to parallel farming
 class Tracker extends events_1.default {
-    constructor(storage) {
+    constructor(storage, wallet) {
         super();
         this.storage = storage;
+        this.wallet = wallet;
         this.init();
     }
     async init() {
@@ -36,6 +37,27 @@ class Tracker extends events_1.default {
     loadLht(lht) {
         this.lht = new Map(JSON.parse(lht));
         return;
+    }
+    async createPendingJoinMessage() {
+    }
+    async createFullJoinmessage() {
+    }
+    async createLeaveMessage() {
+    }
+    async createFailureMessage() {
+    }
+    async createHostLeaveMessage() {
+        const profile = this.wallet.getProfile();
+        let message = {
+            version: 0,
+            type: 'host-leave',
+            sender: profile.id,
+            timestamp: Date.now(),
+            publicKey: profile.publicKey,
+            signature: null
+        };
+        message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
+        return message;
     }
     addEntry(node_id, join) {
         // assumes entry is validated in message
