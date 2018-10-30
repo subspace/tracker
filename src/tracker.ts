@@ -1,7 +1,7 @@
 import crypto from '@subspace/crypto'
 import EventEmitter from 'events'
 import {getClosestIdByXor} from '@subspace/utils';
-import {IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IReJoinObject, IHostLeaveMessage} from "./interfaces";
+import {IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IReJoinObject, IHostMessage} from "./interfaces";
 
 
 // TODO
@@ -46,25 +46,37 @@ export default class Tracker extends EventEmitter {
   }
 
   public async createPendingJoinMessage() {
-
+    const profile = this.wallet.getProfile()
+    let message: IHostMessage = {
+      version: 0,
+      type: 'host-join',
+      sender: profile.id,
+      timestamp: Date.now(),
+      publicKey: profile.publicKey,
+      signature: null
+    }
+    message.signature = await crypto.sign(message, profile.privateKeyObject)
+    return message
   }
 
   public async createFullJoinmessage() {
-
+    const profile = this.wallet.getProfile()
+    let message: IHostMessage = {
+      version: 0,
+      type: 'host-full-join',
+      sender: profile.id,
+      timestamp: Date.now(),
+      publicKey: profile.publicKey,
+      signature: null
+    }
+    message.signature = await crypto.sign(message, profile.privateKeyObject)
+    return message
   }
 
   public async createLeaveMessage() {
-
-  }
-
-  public async createFailureMessage() {
-    
-  }
-
-  private async createHostLeaveMessage(): Promise<IHostLeaveMessage> {
     const profile = this.wallet.getProfile()
 
-    let message: IHostLeaveMessage = {
+    let message: IHostMessage = {
       version: 0,
       type: 'host-leave',
       sender: profile.id,
@@ -74,6 +86,28 @@ export default class Tracker extends EventEmitter {
     }
     message.signature = await crypto.sign(message, profile.privateKeyObject)
     return message
+  }
+
+  public async createFailureMessage(host: string) {
+    const profile = this.wallet.getProfile()
+
+    let message: IHostMessage = {
+      version: 0,
+      type: 'host-failure',
+      sender: profile.id,
+      data: host,
+      timestamp: Date.now(),
+      publicKey: profile.publicKey,
+      signature: null
+    }
+    message.signature = await crypto.sign(message, profile.privateKeyObject)
+    return message
+  }
+
+  public async isValidHostMessage(message: IHostMessage) {
+    const unsignedMessage = {...message}
+    unsignedMessage.signature = null
+    return await crypto.isValidSignature(unsignedMessage, message.signature, message.publicKey)
   }
 
   addEntry(node_id: string, join: IJoinObject) {

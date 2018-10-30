@@ -48,10 +48,11 @@ export interface IMessage {
     version: number;
     type: string;
     timestamp: number;
+    data?: any;
     sender: string;
     publicKey: string;
     signature: string | null;
 }
-export interface IHostLeaveMessage extends IMessage {
-    type: 'host-leave';
+export interface IHostMessage extends IMessage {
+    type: 'host-leave' | 'host-join' | 'host-full-join' | 'host-failure';
 }

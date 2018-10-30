@@ -39,14 +39,32 @@ class Tracker extends events_1.default {
         return;
     }
     async createPendingJoinMessage() {
+        const profile = this.wallet.getProfile();
+        let message = {
+            version: 0,
+            type: 'host-join',
+            sender: profile.id,
+            timestamp: Date.now(),
+            publicKey: profile.publicKey,
+            signature: null
+        };
+        message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
+        return message;
     }
     async createFullJoinmessage() {
+        const profile = this.wallet.getProfile();
+        let message = {
+            version: 0,
+            type: 'host-full-join',
+            sender: profile.id,
+            timestamp: Date.now(),
+            publicKey: profile.publicKey,
+            signature: null
+        };
+        message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
+        return message;
     }
     async createLeaveMessage() {
-    }
-    async createFailureMessage() {
-    }
-    async createHostLeaveMessage() {
         const profile = this.wallet.getProfile();
         let message = {
             version: 0,
@@ -58,6 +76,25 @@ class Tracker extends events_1.default {
         };
         message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
         return message;
+    }
+    async createFailureMessage(host) {
+        const profile = this.wallet.getProfile();
+        let message = {
+            version: 0,
+            type: 'host-failure',
+            sender: profile.id,
+            data: host,
+            timestamp: Date.now(),
+            publicKey: profile.publicKey,
+            signature: null
+        };
+        message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
+        return message;
+    }
+    async isValidHostMessage(message) {
+        const unsignedMessage = Object.assign({}, message);
+        unsignedMessage.signature = null;
+        return await crypto_1.default.isValidSignature(unsignedMessage, message.signature, message.publicKey);
     }
     addEntry(node_id, join) {
         // assumes entry is validated in message
