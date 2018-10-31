@@ -1,7 +1,7 @@
 import crypto from '@subspace/crypto'
 import EventEmitter from 'events'
 import {getClosestIdByXor} from '@subspace/utils';
-import {IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IReJoinObject, IHostMessage, ISignatureObject, IMessage} from "./interfaces"
+import {IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IHostMessage, ISignatureObject, IMessage, INeighborProof} from "./interfaces"
 
 // dev deps for types only!
 import Wallet from '@subspace/wallet'
@@ -102,7 +102,7 @@ export class Tracker extends EventEmitter {
     return test
   }
 
-  public async createInitialJoinMessage(publicIP: string, isGateway: boolean) {
+  public async createJoinMessage(publicIP: string, isGateway: boolean, signatures: INeighborProof[]) {
     const profile = this.wallet.getProfile()
     const pledge = this.wallet.profile.pledge
 
@@ -115,14 +115,15 @@ export class Tracker extends EventEmitter {
       publicIp: publicIP, 
       isGateway: isGateway,
       timestamp: Date.now(),
-      signature: null
+      signature: null,
+      signatures
     }
 
     join.signature = await crypto.sign(join, profile.privateKeyObject)
  
     let message: IHostMessage = {
       version: 0,
-      type: 'host-full-join',
+      type: 'host-join',
       sender: profile.id,
       timestamp: Date.now(),
       publicKey: profile.publicKey,
@@ -134,37 +135,7 @@ export class Tracker extends EventEmitter {
     return message
   }
 
-  public async isValidInitialJoinMessage() {
-
-  }
-
-  public async createRejoinMessage() {
-    const profile = this.wallet.getProfile()
-
-    const rejoin: IReJoinObject = {
-      type: 'rejoin',
-      nodeId: profile.id,
-      previous: null,
-      timestamp: Date.now(),
-      signature: null
-    }
-
-    rejoin.signature = await crypto.sign(rejoin, profile.privateKeyObject)
-
-    let message: IHostMessage = {
-      version: 0,
-      type: 'host-full-join',
-      sender: profile.id,
-      timestamp: Date.now(),
-      publicKey: profile.publicKey,
-      data: <IReJoinObject> rejoin,
-      signature: null
-    }
-    message.signature = await crypto.sign(message, profile.privateKeyObject)
-    return message
-  }
-
-  public async isValidRejoinMessage() {
+  public async isValidJoinMessage() {
 
   }
 
@@ -288,13 +259,13 @@ export class Tracker extends EventEmitter {
     return this.lht.get(node_id)
   }
 
-  updateEntry(update: ILeaveObject | IFailureObject | IReJoinObject) {
+  updateEntry(update: ILeaveObject | IFailureObject | IJoinObject) {
     let entry = this.getEntry(update.nodeId)
 
     if (update.type === 'leave' || update.type === 'failure') {
       entry.uptime += update.timestamp - entry.updatedAt
       entry.status = false
-    } else if (update.type === 'rejoin') {
+    } else if (update.type === 'join') {
       entry.status = true
     }
 
@@ -438,25 +409,25 @@ export class Tracker extends EventEmitter {
 
   
   // memDelta methods
-  parseUpdate(update: ILeaveObject | IFailureObject | IReJoinObject) {
+  parseUpdate(update: ILeaveObject | IFailureObject | IJoinObject) {
     const array: (string | number)[] = Object.values(update)
     const arrayString: string = array.toString()
     const hash: string = crypto.getHash(arrayString)
     return { array, hash }
   }
 
-  addDelta(update: ILeaveObject | IFailureObject | IReJoinObject) {
+  addDelta(update: ILeaveObject | IFailureObject | IJoinObject) {
     // parse object and add to memdelta for gossip to neighbors
     const parsed = this.parseUpdate(update)
     this.memDelta.set(parsed.hash, parsed.array)
   }
 
-  removeDelta(update: ILeaveObject | IFailureObject | IReJoinObject) {
+  removeDelta(update: ILeaveObject | IFailureObject | IJoinObject) {
     // remove an update from the memdelta by hash
     return this.memDelta.delete(this.parseUpdate(update).hash)
   }
 
-  inMemDelta(update: ILeaveObject | IFailureObject | IReJoinObject) {
+  inMemDelta(update: ILeaveObject | IFailureObject | IJoinObject) {
     // check if an update is in the delta
     return this.memDelta.has(this.parseUpdate(update).hash)
   }

@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import EventEmitter from 'events';
-import { IFailureObject, IEntryObject, ILeaveObject, IReJoinObject, IHostMessage, IMessage } from "./interfaces";
+import { IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IHostMessage, IMessage, INeighborProof } from "./interfaces";
 import Wallet from '@subspace/wallet';
 import { Ledger } from '@subspace/ledger';
 import { Record } from '@subspace/database';
@@ -20,10 +20,8 @@ export declare class Tracker extends EventEmitter {
         valid: boolean;
         reason: string;
     }>;
-    createInitialJoinMessage(publicIP: string, isGateway: boolean): Promise<IHostMessage>;
-    isValidInitialJoinMessage(): Promise<void>;
-    createRejoinMessage(): Promise<IHostMessage>;
-    isValidRejoinMessage(): Promise<void>;
+    createJoinMessage(publicIP: string, isGateway: boolean, signatures: INeighborProof[]): Promise<IHostMessage>;
+    isValidJoinMessage(): Promise<void>;
     createLeaveMessage(): Promise<IHostMessage>;
     isValidLeaveMessage(): Promise<void>;
     createFailureMessage(): Promise<IHostMessage>;
@@ -31,20 +29,20 @@ export declare class Tracker extends EventEmitter {
     isValidFailureMessage(): Promise<void>;
     addEntry(txRecord: Record): void;
     getEntry(node_id: string): IEntryObject;
-    updateEntry(update: ILeaveObject | IFailureObject | IReJoinObject): void;
+    updateEntry(update: ILeaveObject | IFailureObject | IJoinObject): void;
     removeEntry(nodeId: string): void;
     hasEntry(nodeId: string): boolean;
     getLength(): number;
     getAllHosts(): string[];
     getActiveHosts(): string[];
     getNeighbors(sourceId: string, validHosts: string[]): string[];
-    parseUpdate(update: ILeaveObject | IFailureObject | IReJoinObject): {
+    parseUpdate(update: ILeaveObject | IFailureObject | IJoinObject): {
         array: (string | number)[];
         hash: string;
     };
-    addDelta(update: ILeaveObject | IFailureObject | IReJoinObject): void;
-    removeDelta(update: ILeaveObject | IFailureObject | IReJoinObject): boolean;
-    inMemDelta(update: ILeaveObject | IFailureObject | IReJoinObject): boolean;
+    addDelta(update: ILeaveObject | IFailureObject | IJoinObject): void;
+    removeDelta(update: ILeaveObject | IFailureObject | IJoinObject): boolean;
+    inMemDelta(update: ILeaveObject | IFailureObject | IJoinObject): boolean;
     hasDelta(): boolean;
     getDelta(): (string | number)[][];
     clearDelta(): void;

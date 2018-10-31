@@ -80,7 +80,7 @@ class Tracker extends events_1.default {
         test.valid = true;
         return test;
     }
-    async createInitialJoinMessage(publicIP, isGateway) {
+    async createJoinMessage(publicIP, isGateway, signatures) {
         const profile = this.wallet.getProfile();
         const pledge = this.wallet.profile.pledge;
         const join = {
@@ -92,12 +92,13 @@ class Tracker extends events_1.default {
             publicIp: publicIP,
             isGateway: isGateway,
             timestamp: Date.now(),
-            signature: null
+            signature: null,
+            signatures
         };
         join.signature = await crypto_1.default.sign(join, profile.privateKeyObject);
         let message = {
             version: 0,
-            type: 'host-full-join',
+            type: 'host-join',
             sender: profile.id,
             timestamp: Date.now(),
             publicKey: profile.publicKey,
@@ -107,31 +108,7 @@ class Tracker extends events_1.default {
         message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
         return message;
     }
-    async isValidInitialJoinMessage() {
-    }
-    async createRejoinMessage() {
-        const profile = this.wallet.getProfile();
-        const rejoin = {
-            type: 'rejoin',
-            nodeId: profile.id,
-            previous: null,
-            timestamp: Date.now(),
-            signature: null
-        };
-        rejoin.signature = await crypto_1.default.sign(rejoin, profile.privateKeyObject);
-        let message = {
-            version: 0,
-            type: 'host-full-join',
-            sender: profile.id,
-            timestamp: Date.now(),
-            publicKey: profile.publicKey,
-            data: rejoin,
-            signature: null
-        };
-        message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
-        return message;
-    }
-    async isValidRejoinMessage() {
+    async isValidJoinMessage() {
     }
     async createLeaveMessage() {
         const profile = this.wallet.getProfile();
@@ -237,7 +214,7 @@ class Tracker extends events_1.default {
             entry.uptime += update.timestamp - entry.updatedAt;
             entry.status = false;
         }
-        else if (update.type === 'rejoin') {
+        else if (update.type === 'join') {
             entry.status = true;
         }
         entry.updatedAt = update.timestamp;

@@ -1,5 +1,5 @@
 export interface IUpdateObject {
-    type: 'join' | 'leave' | 'failure' | 'rejoin';
+    type: 'join' | 'leave' | 'failure';
     nodeId: string;
     timestamp: number;
 }
@@ -11,14 +11,16 @@ export interface IJoinObject extends IUpdateObject {
     publicIp: string;
     isGateway: boolean;
     signature: string;
+    signatures: INeighborProof[];
+}
+export interface INeighborProof {
+    host: string;
+    neighbor: string;
+    timestamp: number;
+    signature: string;
 }
 export interface ILeaveObject extends IUpdateObject {
     type: 'leave';
-    previous: string;
-    signature: string;
-}
-export interface IReJoinObject extends IUpdateObject {
-    type: 'rejoin';
     previous: string;
     signature: string;
 }
@@ -45,7 +47,7 @@ export interface IEntryObject {
     interval: number;
     status: boolean;
     uptime: number;
-    log: (IJoinObject | ILeaveObject | IReJoinObject | IFailureObject)[];
+    log: (IJoinObject | ILeaveObject | IFailureObject)[];
 }
 export interface IMessage {
     version: number;
@@ -57,5 +59,5 @@ export interface IMessage {
     signature: string | null;
 }
 export interface IHostMessage extends IMessage {
-    type: 'host-leave' | 'host-join' | 'host-full-join' | 'host-failure';
+    type: 'host-leave' | 'host-join' | 'host-failure';
 }
