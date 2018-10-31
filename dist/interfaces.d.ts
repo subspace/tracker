@@ -35,11 +35,14 @@ export interface IFailureObject extends IUpdateObject {
 export interface IEntryObject {
     hash: string;
     publicKey: string;
+    pledgeTx: string;
     pledge: number;
     proofHash: string;
     publicIp: string;
     isGateway: boolean;
-    timestamp: number;
+    createdAt: number;
+    updatedAt: number;
+    interval: number;
     status: boolean;
     uptime: number;
     log: (IJoinObject | ILeaveObject | IReJoinObject | IFailureObject)[];

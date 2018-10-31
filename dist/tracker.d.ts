@@ -1,8 +1,9 @@
 /// <reference types="node" />
 import EventEmitter from 'events';
-import { IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IReJoinObject, IHostMessage } from "./interfaces";
+import { IFailureObject, IEntryObject, ILeaveObject, IReJoinObject, IHostMessage, IMessage } from "./interfaces";
 import Wallet from '@subspace/wallet';
 import { Ledger } from '@subspace/ledger';
+import { Record } from '@subspace/database';
 import Storage from '@subspace/storage';
 export declare class Tracker extends EventEmitter {
     storage: Storage;
@@ -15,8 +16,7 @@ export declare class Tracker extends EventEmitter {
     constructor(storage: Storage, wallet: Wallet, ledger: Ledger);
     private init;
     loadLht(lht: string): void;
-    createPendingJoinMessage(): Promise<IHostMessage>;
-    isValidPendingJoinMessage(message: IHostMessage): Promise<true | {
+    isValidNeighborRequestMessage(message: IMessage): Promise<true | {
         valid: boolean;
         reason: string;
     }>;
@@ -29,15 +29,15 @@ export declare class Tracker extends EventEmitter {
     createFailureMessage(): Promise<IHostMessage>;
     signFailureMessage(failureMessage: IFailureObject): Promise<IHostMessage>;
     isValidFailureMessage(): Promise<void>;
-    isValidHostMessage(message: IHostMessage): Promise<boolean>;
-    addEntry(node_id: string, join: IJoinObject): void;
+    addEntry(txRecord: Record): void;
     getEntry(node_id: string): IEntryObject;
     updateEntry(update: ILeaveObject | IFailureObject | IReJoinObject): void;
     removeEntry(nodeId: string): void;
     hasEntry(nodeId: string): boolean;
     getLength(): number;
-    getNodeIds(): string[];
-    getNeighbors(myNodeIds: string): string[];
+    getAllHosts(): string[];
+    getActiveHosts(): string[];
+    getNeighbors(sourceId: string, validHosts: string[]): string[];
     parseUpdate(update: ILeaveObject | IFailureObject | IReJoinObject): {
         array: (string | number)[];
         hash: string;

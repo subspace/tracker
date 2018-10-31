@@ -1,7 +1,9 @@
 import crypto from '@subspace/crypto'
 import EventEmitter from 'events'
 import {getClosestIdByXor} from '@subspace/utils';
-import {IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IReJoinObject, IHostMessage, ISignatureObject} from "./interfaces"
+import {IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IReJoinObject, IHostMessage, ISignatureObject, IMessage} from "./interfaces"
+
+// dev deps for types only!
 import Wallet from '@subspace/wallet'
 import {Ledger} from '@subspace/ledger'
 import {DataBase, Record, IValue} from '@subspace/database'
@@ -51,24 +53,8 @@ export class Tracker extends EventEmitter {
 
   // host messages and validation
 
-  public async createPendingJoinMessage() {
-    const profile = this.wallet.getProfile()
-    const pledgeTxId = this.wallet.profile.pledge.pledgeTx
 
-    let message: IHostMessage = {
-      version: 0,
-      type: 'host-join',
-      sender: profile.id,
-      timestamp: Date.now(),
-      publicKey: profile.publicKey,
-      data: pledgeTxId,
-      signature: null
-    }
-    message.signature = await crypto.sign(message, profile.privateKeyObject)
-    return message
-  }
-
-  public async isValidPendingJoinMessage(message: IHostMessage) {
+  public async isValidNeighborRequestMessage(message: IMessage) {
     // validate a pending join message received via gossip 
     const pledgeId: string = message.data
     const test = {
@@ -78,7 +64,7 @@ export class Tracker extends EventEmitter {
 
     // validate the timestamp 
     if (! crypto.isDateWithinRange(message.timestamp, 600000)) {
-      test.reason = 'Invalid pending join, timestamp out of range'
+      test.reason = 'Invalid neighbor request, timestamp out of range'
       return test
     }
 
@@ -88,7 +74,7 @@ export class Tracker extends EventEmitter {
     if (!txRecordValue) {
       txRecordValue = this.ledger.validTxs.get(message.data)
       if (!txRecordValue) {
-        test.reason = 'Invalid pending join, cannot locate pledge tx'
+        test.reason = 'Invalid neighbor request, cannot locate pledge tx'
         return test
       }
     }
@@ -97,18 +83,18 @@ export class Tracker extends EventEmitter {
 
     // ensure the pledge tx is a pledge tx
     if (!(txRecord.value.content.type === 'pledge')) {
-      test.reason = 'Invalid pending join, host is not referencing a pledge tx'
+      test.reason = 'Invalid neighbor request, host is not referencing a pledge tx'
     }
 
     // validate the host matches the pledge tx 
     if (!(txRecord.value.publicKey === message.publicKey)) {
-      test.reason = 'Invalid pending join, host does not match pledge'
+      test.reason = 'Invalid neighbor request, host does not match pledge'
       return test
     }
 
     // validate the signature
     if (! await crypto.isValidMessageSignature(message)) {
-      test.reason = 'Invalid pending join, timestamp out of range'
+      test.reason = 'Invalid neighbor request, timestamp out of range'
       return test
     }
 
@@ -272,32 +258,30 @@ export class Tracker extends EventEmitter {
 
   }
 
-  public async isValidHostMessage(message: IHostMessage) {
-    const unsignedMessage = {...message}
-    unsignedMessage.signature = null
-    return await crypto.isValidSignature(unsignedMessage, message.signature, message.publicKey)
-  }
-
   // LHT (tracker proper) methods
 
-  addEntry(node_id: string, join: IJoinObject) {
-    // assumes entry is validated in message
+  addEntry(txRecord: Record) {
+    // add a new host to the LHT on valid pledge tx
 
     var entry: IEntryObject = {
       hash: null,
-      publicKey: join.publicKey,
-      pledge: join.pledge,
-      proofHash: join.proofHash,
-      publicIp: join.publicIp,
-      isGateway: join.isGateway,
-      timestamp: join.timestamp,
-      status: true,
+      publicKey: txRecord.value.publicKey,
+      pledgeTx: txRecord.key,
+      pledge: txRecord.value.content.spacePledged,
+      proofHash: txRecord.value.content.pledgeProof,
+      publicIp: null,
+      isGateway: null,
+      createdAt: txRecord.value.createdAt,
+      updatedAt: txRecord.value.createdAt,
+      interval: txRecord.value.content.interval,
+      status: false,
       uptime: 0,
-      log: [join]
+      log: []
     }
 
     entry.hash = crypto.getHash(JSON.stringify(entry))
-    this.lht.set(node_id, entry)
+    const nodeId = crypto.getHash(txRecord.value.publicKey)
+    this.lht.set(nodeId, entry)
   }
 
   getEntry(node_id: string) {
@@ -308,13 +292,13 @@ export class Tracker extends EventEmitter {
     let entry = this.getEntry(update.nodeId)
 
     if (update.type === 'leave' || update.type === 'failure') {
-      entry.uptime += update.timestamp - entry.timestamp
+      entry.uptime += update.timestamp - entry.updatedAt
       entry.status = false
     } else if (update.type === 'rejoin') {
       entry.status = true
     }
 
-    entry.timestamp = update.timestamp
+    entry.updatedAt = update.timestamp
     entry.log.push(update)
     entry.hash = null
     entry.hash = crypto.getHash(JSON.stringify(entry))
@@ -335,12 +319,23 @@ export class Tracker extends EventEmitter {
     return this.lht.size
   }
 
-  getNodeIds() {
-    // returns an array of all node ids in the lht
+  getAllHosts() {
+    // returns an array of all host on the lht
     return [...this.lht.keys()]
   }
 
-  getNeighbors(myNodeIds: string): string[] {
+  getActiveHosts() {
+    // return an array of all active hosts on the lht
+    const activeHosts: string[] = []
+    for (const [key, value] of this.lht) {
+      if (value.status) {
+        activeHosts.push(key)
+      }
+    }
+    return activeHosts  
+  }
+
+  getNeighbors(sourceId: string, validHosts: string[]): string[] {
     // generate an array of node_ids based on the current membership set
     // default number (N) is log(2)(tracker_length), but no less than four
     // for my direct neighbors that I will connect to (first N/2)
@@ -352,8 +347,8 @@ export class Tracker extends EventEmitter {
       // for each element in the array find the closest node_id by XOR
       // if my id is one of those then add to my neighbor array
     // TODO: Remove HEX encoding/decoding once we move to `Uint8Array`s
-    const ownId = Buffer.from(myNodeIds, 'hex');
-    const allNodes = this.getNodeIds().map(id => {
+    const ownId = Buffer.from(sourceId, 'hex');
+    const allNodes = validHosts.map(id => {
       return Buffer.from(id, 'hex');
     });
 
@@ -420,8 +415,29 @@ export class Tracker extends EventEmitter {
       });
   }
 
-  // memDelta methods
 
+  // simple host mem pool implementation 
+
+  // pending join message -> gossip fast, let my neighbors know I want to connect
+  // pending rejoin message -> gossip fast, let my neighbors know that I want to connect
+  // these could both be the same message, either add or update tracker
+
+  // in the meantime collect signatures from all neighbors 
+  // once you have all required signatures
+  // what if my neighbors change during the transition period?
+  // is each node fully validating that these are the correct neighbors?
+  // when I join, everyones neighbors will potentially shift
+  // is there a grace period for shifting neighbors 
+
+  // full join message -> prove neighborhood and add entry to LHT
+  // full rejoin message -> prove neighborhood and restart time in LHT
+
+  // leave message -> prove leave and pause timer in LHT
+  // failure message -> my neighbors prove that I have left, pauses my time in LHT
+
+
+  
+  // memDelta methods
   parseUpdate(update: ILeaveObject | IFailureObject | IReJoinObject) {
     const array: (string | number)[] = Object.values(update)
     const arrayString: string = array.toString()

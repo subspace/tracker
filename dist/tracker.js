@@ -39,22 +39,7 @@ class Tracker extends events_1.default {
         this.lht = new Map(JSON.parse(lht));
     }
     // host messages and validation
-    async createPendingJoinMessage() {
-        const profile = this.wallet.getProfile();
-        const pledgeTxId = this.wallet.profile.pledge.pledgeTx;
-        let message = {
-            version: 0,
-            type: 'host-join',
-            sender: profile.id,
-            timestamp: Date.now(),
-            publicKey: profile.publicKey,
-            data: pledgeTxId,
-            signature: null
-        };
-        message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
-        return message;
-    }
-    async isValidPendingJoinMessage(message) {
+    async isValidNeighborRequestMessage(message) {
         // validate a pending join message received via gossip 
         const pledgeId = message.data;
         const test = {
@@ -63,7 +48,7 @@ class Tracker extends events_1.default {
         };
         // validate the timestamp 
         if (!crypto_1.default.isDateWithinRange(message.timestamp, 600000)) {
-            test.reason = 'Invalid pending join, timestamp out of range';
+            test.reason = 'Invalid neighbor request, timestamp out of range';
             return test;
         }
         // ensure the pledge tx has been published
@@ -72,7 +57,7 @@ class Tracker extends events_1.default {
         if (!txRecordValue) {
             txRecordValue = this.ledger.validTxs.get(message.data);
             if (!txRecordValue) {
-                test.reason = 'Invalid pending join, cannot locate pledge tx';
+                test.reason = 'Invalid neighbor request, cannot locate pledge tx';
                 return test;
             }
         }
@@ -80,16 +65,16 @@ class Tracker extends events_1.default {
         await txRecord.unpack(null);
         // ensure the pledge tx is a pledge tx
         if (!(txRecord.value.content.type === 'pledge')) {
-            test.reason = 'Invalid pending join, host is not referencing a pledge tx';
+            test.reason = 'Invalid neighbor request, host is not referencing a pledge tx';
         }
         // validate the host matches the pledge tx 
         if (!(txRecord.value.publicKey === message.publicKey)) {
-            test.reason = 'Invalid pending join, host does not match pledge';
+            test.reason = 'Invalid neighbor request, host does not match pledge';
             return test;
         }
         // validate the signature
         if (!await crypto_1.default.isValidMessageSignature(message)) {
-            test.reason = 'Invalid pending join, timestamp out of range';
+            test.reason = 'Invalid neighbor request, timestamp out of range';
             return test;
         }
         test.valid = true;
@@ -221,28 +206,27 @@ class Tracker extends events_1.default {
     }
     async isValidFailureMessage() {
     }
-    async isValidHostMessage(message) {
-        const unsignedMessage = Object.assign({}, message);
-        unsignedMessage.signature = null;
-        return await crypto_1.default.isValidSignature(unsignedMessage, message.signature, message.publicKey);
-    }
     // LHT (tracker proper) methods
-    addEntry(node_id, join) {
-        // assumes entry is validated in message
+    addEntry(txRecord) {
+        // add a new host to the LHT on valid pledge tx
         var entry = {
             hash: null,
-            publicKey: join.publicKey,
-            pledge: join.pledge,
-            proofHash: join.proofHash,
-            publicIp: join.publicIp,
-            isGateway: join.isGateway,
-            timestamp: join.timestamp,
-            status: true,
+            publicKey: txRecord.value.publicKey,
+            pledgeTx: txRecord.key,
+            pledge: txRecord.value.content.spacePledged,
+            proofHash: txRecord.value.content.pledgeProof,
+            publicIp: null,
+            isGateway: null,
+            createdAt: txRecord.value.createdAt,
+            updatedAt: txRecord.value.createdAt,
+            interval: txRecord.value.content.interval,
+            status: false,
             uptime: 0,
-            log: [join]
+            log: []
         };
         entry.hash = crypto_1.default.getHash(JSON.stringify(entry));
-        this.lht.set(node_id, entry);
+        const nodeId = crypto_1.default.getHash(txRecord.value.publicKey);
+        this.lht.set(nodeId, entry);
     }
     getEntry(node_id) {
         return this.lht.get(node_id);
@@ -250,13 +234,13 @@ class Tracker extends events_1.default {
     updateEntry(update) {
         let entry = this.getEntry(update.nodeId);
         if (update.type === 'leave' || update.type === 'failure') {
-            entry.uptime += update.timestamp - entry.timestamp;
+            entry.uptime += update.timestamp - entry.updatedAt;
             entry.status = false;
         }
         else if (update.type === 'rejoin') {
             entry.status = true;
         }
-        entry.timestamp = update.timestamp;
+        entry.updatedAt = update.timestamp;
         entry.log.push(update);
         entry.hash = null;
         entry.hash = crypto_1.default.getHash(JSON.stringify(entry));
@@ -272,11 +256,21 @@ class Tracker extends events_1.default {
     getLength() {
         return this.lht.size;
     }
-    getNodeIds() {
-        // returns an array of all node ids in the lht
+    getAllHosts() {
+        // returns an array of all host on the lht
         return [...this.lht.keys()];
     }
-    getNeighbors(myNodeIds) {
+    getActiveHosts() {
+        // return an array of all active hosts on the lht
+        const activeHosts = [];
+        for (const [key, value] of this.lht) {
+            if (value.status) {
+                activeHosts.push(key);
+            }
+        }
+        return activeHosts;
+    }
+    getNeighbors(sourceId, validHosts) {
         // generate an array of node_ids based on the current membership set
         // default number (N) is log(2)(tracker_length), but no less than four
         // for my direct neighbors that I will connect to (first N/2)
@@ -288,8 +282,8 @@ class Tracker extends events_1.default {
         // for each element in the array find the closest node_id by XOR
         // if my id is one of those then add to my neighbor array
         // TODO: Remove HEX encoding/decoding once we move to `Uint8Array`s
-        const ownId = Buffer.from(myNodeIds, 'hex');
-        const allNodes = this.getNodeIds().map(id => {
+        const ownId = Buffer.from(sourceId, 'hex');
+        const allNodes = validHosts.map(id => {
             return Buffer.from(id, 'hex');
         });
         const candidates = allNodes.slice();
@@ -340,6 +334,20 @@ class Tracker extends events_1.default {
             return Buffer.from(id).toString('hex');
         });
     }
+    // simple host mem pool implementation 
+    // pending join message -> gossip fast, let my neighbors know I want to connect
+    // pending rejoin message -> gossip fast, let my neighbors know that I want to connect
+    // these could both be the same message, either add or update tracker
+    // in the meantime collect signatures from all neighbors 
+    // once you have all required signatures
+    // what if my neighbors change during the transition period?
+    // is each node fully validating that these are the correct neighbors?
+    // when I join, everyones neighbors will potentially shift
+    // is there a grace period for shifting neighbors 
+    // full join message -> prove neighborhood and add entry to LHT
+    // full rejoin message -> prove neighborhood and restart time in LHT
+    // leave message -> prove leave and pause timer in LHT
+    // failure message -> my neighbors prove that I have left, pauses my time in LHT
     // memDelta methods
     parseUpdate(update) {
         const array = Object.values(update);

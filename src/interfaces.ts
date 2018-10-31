@@ -41,11 +41,14 @@ export interface IFailureObject extends IUpdateObject {
 export interface IEntryObject {
   hash: string        // entry hash (for creating a merkle tree)
   publicKey: string   // public key of host
+  pledgeTx: string    // id of pledge tx on the ledger
   pledge: number      // space pledged by host
   proofHash: string   // hash of proof of space
   publicIp: string    // publicIP of host
   isGateway: boolean  
-  timestamp: number   // when joined
+  createdAt: number   // when the pledge starts
+  updatedAt: number   // when the entry was last updated
+  interval: number    // pledge interval
   status: boolean     // on or off the network
   uptime: number      // cumulative uptime in ms
   log: (IJoinObject | ILeaveObject | IReJoinObject | IFailureObject)[]
