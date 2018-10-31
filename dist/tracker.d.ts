@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import EventEmitter from 'events';
 import { IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IHostMessage, ISignatureObject, IMessage, INeighborProof } from "./interfaces";
+export { IHostMessage, IJoinObject, ILeaveObject, IFailureObject, ISignatureObject };
 import Wallet from '@subspace/wallet';
 import { Ledger } from '@subspace/ledger';
 import { Record } from '@subspace/database';

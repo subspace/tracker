@@ -3,6 +3,8 @@ import EventEmitter from 'events'
 import {getClosestIdByXor} from '@subspace/utils';
 import {IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IHostMessage, ISignatureObject, IMessage, INeighborProof} from "./interfaces"
 
+export {IHostMessage, IJoinObject, ILeaveObject, IFailureObject, ISignatureObject }
+
 // dev deps for types only!
 import Wallet from '@subspace/wallet'
 import {Ledger} from '@subspace/ledger'
