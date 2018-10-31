@@ -39,7 +39,7 @@ class Tracker extends events_1.default {
         this.lht = new Map(JSON.parse(lht));
     }
     // host messages and validation
-    async isValidNeighborRequestMessage(message) {
+    async isValidNeighborRequest(message) {
         // validate a pending join message received via gossip 
         const pledgeId = message.data;
         const test = {
@@ -78,7 +78,7 @@ class Tracker extends events_1.default {
             return test;
         }
         test.valid = true;
-        return true;
+        return test;
     }
     async createInitialJoinMessage(publicIP, isGateway) {
         const profile = this.wallet.getProfile();

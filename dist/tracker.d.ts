@@ -16,7 +16,7 @@ export declare class Tracker extends EventEmitter {
     constructor(storage: Storage, wallet: Wallet, ledger: Ledger);
     private init;
     loadLht(lht: string): void;
-    isValidNeighborRequestMessage(message: IMessage): Promise<true | {
+    isValidNeighborRequest(message: IMessage): Promise<{
         valid: boolean;
         reason: string;
     }>;

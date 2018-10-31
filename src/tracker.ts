@@ -54,7 +54,7 @@ export class Tracker extends EventEmitter {
   // host messages and validation
 
 
-  public async isValidNeighborRequestMessage(message: IMessage) {
+  public async isValidNeighborRequest(message: IMessage) {
     // validate a pending join message received via gossip 
     const pledgeId: string = message.data
     const test = {
@@ -99,7 +99,7 @@ export class Tracker extends EventEmitter {
     }
 
     test.valid = true
-    return true
+    return test
   }
 
   public async createInitialJoinMessage(publicIP: string, isGateway: boolean) {
