@@ -134,17 +134,18 @@ class Tracker extends events_1.default {
     }
     async isValidLeaveMessage() {
     }
-    async createFailureMessage() {
+    async createFailureMessage(nodeId) {
         const profile = this.wallet.getProfile();
         const failure = {
             type: 'failure',
-            nodeId: profile.id,
+            nodeId: nodeId,
             previous: null,
             timestamp: Date.now(),
             signatures: []
         };
         const signatureObject = {
-            nodeId: profile.id,
+            nodeId: nodeId,
+            publicKey: profile.publicKey,
             timestamp: Date.now(),
             signature: await crypto_1.default.sign(failure, profile.privateKeyObject)
         };
@@ -164,16 +165,39 @@ class Tracker extends events_1.default {
     async signFailureMessage(failureMessage) {
         const profile = this.wallet.getProfile();
         const signatureObject = {
-            nodeId: profile.id,
+            nodeId: failureMessage.nodeId,
+            publicKey: profile.publicKey,
             timestamp: Date.now(),
-            signature: await crypto_1.default.sign(failureMessage, profile.privateKeyObject)
+            signature: null
         };
-        failureMessage.signatures.push(signatureObject);
+        signatureObject.signature = await crypto_1.default.sign(signatureObject, profile.privateKeyObject);
+        // failureMessage.signatures.push(signatureObject)
+        // let message: IHostMessage = {
+        //   version: 0,
+        //   type: 'host-failure',
+        //   sender: profile.id,
+        //   data: <IFailureObject> failureMessage,
+        //   timestamp: Date.now(),
+        //   publicKey: profile.publicKey,
+        //   signature: null
+        // }
+        // message.signature = await crypto.sign(message, profile.privateKeyObject)
+        return signatureObject;
+    }
+    async compileFailureMessage(nodeId, timestamp, signatures) {
+        const profile = this.wallet.getProfile();
+        const failure = {
+            type: 'failure',
+            previous: null,
+            nodeId,
+            timestamp,
+            signatures
+        };
         let message = {
             version: 0,
             type: 'host-failure',
             sender: profile.id,
-            data: failureMessage,
+            data: failure,
             timestamp: Date.now(),
             publicKey: profile.publicKey,
             signature: null

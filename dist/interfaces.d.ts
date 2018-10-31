@@ -26,6 +26,7 @@ export interface ILeaveObject extends IUpdateObject {
 }
 export interface ISignatureObject {
     nodeId: string;
+    publicKey: string;
     timestamp: number;
     signature: string;
 }

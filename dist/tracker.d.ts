@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import EventEmitter from 'events';
-import { IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IHostMessage, IMessage, INeighborProof } from "./interfaces";
+import { IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IHostMessage, ISignatureObject, IMessage, INeighborProof } from "./interfaces";
 import Wallet from '@subspace/wallet';
 import { Ledger } from '@subspace/ledger';
 import { Record } from '@subspace/database';
@@ -24,8 +24,9 @@ export declare class Tracker extends EventEmitter {
     isValidJoinMessage(): Promise<void>;
     createLeaveMessage(): Promise<IHostMessage>;
     isValidLeaveMessage(): Promise<void>;
-    createFailureMessage(): Promise<IHostMessage>;
-    signFailureMessage(failureMessage: IFailureObject): Promise<IHostMessage>;
+    createFailureMessage(nodeId: string): Promise<IHostMessage>;
+    signFailureMessage(failureMessage: IFailureObject): Promise<ISignatureObject>;
+    compileFailureMessage(nodeId: string, timestamp: number, signatures: ISignatureObject[]): Promise<IHostMessage>;
     isValidFailureMessage(): Promise<void>;
     addEntry(txRecord: Record): void;
     getEntry(node_id: string): IEntryObject;

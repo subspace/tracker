@@ -169,19 +169,20 @@ export class Tracker extends EventEmitter {
 
   }
 
-  public async createFailureMessage() {
+  public async createFailureMessage(nodeId: string) {
     const profile = this.wallet.getProfile()
 
     const failure: IFailureObject = {
       type: 'failure',
-      nodeId: profile.id,
+      nodeId: nodeId,
       previous: null,
       timestamp: Date.now(),
       signatures: []
     }
 
     const signatureObject: ISignatureObject = {
-      nodeId: profile.id,
+      nodeId: nodeId,
+      publicKey: profile.publicKey,
       timestamp: Date.now(),
       signature: await crypto.sign(failure, profile.privateKeyObject)
     }
@@ -205,18 +206,45 @@ export class Tracker extends EventEmitter {
     const profile = this.wallet.getProfile()
 
     const signatureObject: ISignatureObject = {
-      nodeId: profile.id,
+      nodeId: failureMessage.nodeId,
+      publicKey: profile.publicKey,
       timestamp: Date.now(),
-      signature: await crypto.sign(failureMessage, profile.privateKeyObject)
+      signature: null
     }
 
-    failureMessage.signatures.push(signatureObject)
+    signatureObject.signature = await crypto.sign(signatureObject, profile.privateKeyObject)
+
+    // failureMessage.signatures.push(signatureObject)
+
+    // let message: IHostMessage = {
+    //   version: 0,
+    //   type: 'host-failure',
+    //   sender: profile.id,
+    //   data: <IFailureObject> failureMessage,
+    //   timestamp: Date.now(),
+    //   publicKey: profile.publicKey,
+    //   signature: null
+    // }
+    // message.signature = await crypto.sign(message, profile.privateKeyObject)
+    return signatureObject
+  }
+
+  public async compileFailureMessage(nodeId: string, timestamp: number, signatures: ISignatureObject[]) {
+    const profile = this.wallet.getProfile()
+
+    const failure: IFailureObject = {
+      type: 'failure',
+      previous: null,
+      nodeId,
+      timestamp,
+      signatures
+    }
 
     let message: IHostMessage = {
       version: 0,
       type: 'host-failure',
       sender: profile.id,
-      data: <IFailureObject> failureMessage,
+      data: <IFailureObject> failure,
       timestamp: Date.now(),
       publicKey: profile.publicKey,
       signature: null
