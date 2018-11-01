@@ -1,9 +1,16 @@
 "use strict";
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    result["default"] = mod;
+    return result;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const crypto_1 = __importDefault(require("@subspace/crypto"));
+const crypto = __importStar(require("@subspace/crypto"));
 const events_1 = __importDefault(require("events"));
 const utils_1 = require("@subspace/utils");
 const database_1 = require("@subspace/database");
@@ -47,7 +54,7 @@ class Tracker extends events_1.default {
             reason: null
         };
         // validate the timestamp 
-        if (!crypto_1.default.isDateWithinRange(message.timestamp, 600000)) {
+        if (!crypto.isDateWithinRange(message.timestamp, 600000)) {
             test.reason = 'Invalid neighbor request, timestamp out of range';
             return test;
         }
@@ -73,7 +80,7 @@ class Tracker extends events_1.default {
             return test;
         }
         // validate the signature
-        if (!await crypto_1.default.isValidMessageSignature(message)) {
+        if (!await crypto.isValidMessageSignature(message)) {
             test.reason = 'Invalid neighbor request, timestamp out of range';
             return test;
         }
@@ -95,7 +102,7 @@ class Tracker extends events_1.default {
             signature: null,
             signatures
         };
-        join.signature = await crypto_1.default.sign(join, profile.privateKeyObject);
+        join.signature = await crypto.sign(join, profile.privateKeyObject);
         let message = {
             version: 0,
             type: 'host-join',
@@ -105,7 +112,7 @@ class Tracker extends events_1.default {
             data: join,
             signature: null
         };
-        message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
+        message.signature = await crypto.sign(message, profile.privateKeyObject);
         return message;
     }
     async isValidJoinMessage() {
@@ -119,7 +126,7 @@ class Tracker extends events_1.default {
             timestamp: Date.now(),
             signature: null
         };
-        leave.signature = await crypto_1.default.sign(leave, profile.privateKeyObject);
+        leave.signature = await crypto.sign(leave, profile.privateKeyObject);
         let message = {
             version: 0,
             type: 'host-leave',
@@ -129,7 +136,7 @@ class Tracker extends events_1.default {
             data: leave,
             signature: null
         };
-        message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
+        message.signature = await crypto.sign(message, profile.privateKeyObject);
         return message;
     }
     async isValidLeaveMessage() {
@@ -147,7 +154,7 @@ class Tracker extends events_1.default {
             nodeId: nodeId,
             publicKey: profile.publicKey,
             timestamp: Date.now(),
-            signature: await crypto_1.default.sign(failure, profile.privateKeyObject)
+            signature: await crypto.sign(failure, profile.privateKeyObject)
         };
         failure.signatures.push(signatureObject);
         let message = {
@@ -159,7 +166,7 @@ class Tracker extends events_1.default {
             publicKey: profile.publicKey,
             signature: null
         };
-        message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
+        message.signature = await crypto.sign(message, profile.privateKeyObject);
         return message;
     }
     async signFailureMessage(failureMessage) {
@@ -170,7 +177,7 @@ class Tracker extends events_1.default {
             timestamp: Date.now(),
             signature: null
         };
-        signatureObject.signature = await crypto_1.default.sign(signatureObject, profile.privateKeyObject);
+        signatureObject.signature = await crypto.sign(signatureObject, profile.privateKeyObject);
         // failureMessage.signatures.push(signatureObject)
         // let message: IHostMessage = {
         //   version: 0,
@@ -202,7 +209,7 @@ class Tracker extends events_1.default {
             publicKey: profile.publicKey,
             signature: null
         };
-        message.signature = await crypto_1.default.sign(message, profile.privateKeyObject);
+        message.signature = await crypto.sign(message, profile.privateKeyObject);
         return message;
     }
     async isValidFailureMessage() {
@@ -225,8 +232,8 @@ class Tracker extends events_1.default {
             uptime: 0,
             log: []
         };
-        entry.hash = crypto_1.default.getHash(JSON.stringify(entry));
-        const nodeId = crypto_1.default.getHash(txRecord.value.publicKey);
+        entry.hash = crypto.getHash(JSON.stringify(entry));
+        const nodeId = crypto.getHash(txRecord.value.publicKey);
         this.lht.set(nodeId, entry);
     }
     getEntry(node_id) {
@@ -244,7 +251,7 @@ class Tracker extends events_1.default {
         entry.updatedAt = update.timestamp;
         entry.log.push(update);
         entry.hash = null;
-        entry.hash = crypto_1.default.getHash(JSON.stringify(entry));
+        entry.hash = crypto.getHash(JSON.stringify(entry));
         this.lht.set(update.nodeId, entry);
     }
     removeEntry(nodeId) {
@@ -297,7 +304,7 @@ class Tracker extends events_1.default {
          * `halfNodesToReturn` closest Ids to my own ID
          */
         for (let i = 0; i < halfNodesToReturn; ++i) {
-            hashedId = Buffer.from(crypto_1.default.getHash(hashedId.toString('hex')), 'hex');
+            hashedId = Buffer.from(crypto.getHash(hashedId.toString('hex')), 'hex');
             const closest = utils_1.getClosestIdByXor(hashedId, candidates);
             closestIds.push(closest);
             // Remove closest node from future candidates
@@ -312,7 +319,7 @@ class Tracker extends events_1.default {
         getNodesNeighbors: for (let i = 0; i < halfNodesToReturn; ++i) {
             // Hash all of the candidates IDs again in order to go one level deeper
             hashedCandidates = hashedCandidates.map(candidate => {
-                return Buffer.from(crypto_1.default.getHash(Buffer.from(candidate).toString('hex')), 'hex');
+                return Buffer.from(crypto.getHash(Buffer.from(candidate).toString('hex')), 'hex');
             });
             // Check current level for each candidate
             const length = candidates.length;
@@ -353,7 +360,7 @@ class Tracker extends events_1.default {
     parseUpdate(update) {
         const array = Object.values(update);
         const arrayString = array.toString();
-        const hash = crypto_1.default.getHash(arrayString);
+        const hash = crypto.getHash(arrayString);
         return { array, hash };
     }
     addDelta(update) {
