@@ -20,5 +20,8 @@
   "dependencies": {
     "@subspace/crypto": "github:subspace/crypto",
     "@subspace/utils": "github:subspace/utils"
+  },
+  "scripts": {
+    "build": "rm -rf dist/* && tsc -b"
   }
 }
