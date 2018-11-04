@@ -281,7 +281,7 @@ export class Tracker extends EventEmitter {
     }
 
     entry.hash = crypto.getHash(JSON.stringify(entry))
-    const nodeId = crypto.getHash(txRecord.value.publicKey)
+    const nodeId = crypto.getHash(txRecord.value.content.seed)
     this.lht.set(nodeId, entry)
   }
 

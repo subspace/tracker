@@ -233,7 +233,7 @@ class Tracker extends events_1.default {
             log: []
         };
         entry.hash = crypto.getHash(JSON.stringify(entry));
-        const nodeId = crypto.getHash(txRecord.value.publicKey);
+        const nodeId = crypto.getHash(txRecord.value.content.seed);
         this.lht.set(nodeId, entry);
     }
     getEntry(node_id) {
