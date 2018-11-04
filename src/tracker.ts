@@ -299,6 +299,11 @@ export class Tracker extends EventEmitter {
       entry.status = true
     }
 
+    if (update.type === 'join') {
+      entry.isGateway = update.isGateway
+      entry.publicIp = update.publicIp
+    }
+
     entry.updatedAt = update.timestamp
     entry.log.push(update)
     entry.hash = null

@@ -248,6 +248,10 @@ class Tracker extends events_1.default {
         else if (update.type === 'join') {
             entry.status = true;
         }
+        if (update.type === 'join') {
+            entry.isGateway = update.isGateway;
+            entry.publicIp = update.publicIp;
+        }
         entry.updatedAt = update.timestamp;
         entry.log.push(update);
         entry.hash = null;
