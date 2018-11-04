@@ -274,7 +274,7 @@ export class Tracker extends EventEmitter {
       isGateway: null,
       createdAt: txRecord.value.createdAt,
       updatedAt: txRecord.value.createdAt,
-      interval: txRecord.value.content.interval,
+      interval: txRecord.value.content.pledgeInterval,
       status: false,
       uptime: 0,
       log: []
