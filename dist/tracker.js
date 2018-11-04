@@ -219,7 +219,7 @@ class Tracker extends events_1.default {
         // add a new host to the LHT on valid pledge tx
         var entry = {
             hash: null,
-            publicKey: txRecord.value.publicKey,
+            publicKey: txRecord.value.content.seed,
             pledgeTx: txRecord.key,
             pledge: txRecord.value.content.spacePledged,
             proofHash: txRecord.value.content.pledgeProof,

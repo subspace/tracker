@@ -266,7 +266,7 @@ export class Tracker extends EventEmitter {
 
     var entry: IEntryObject = {
       hash: null,
-      publicKey: txRecord.value.publicKey,
+      publicKey: txRecord.value.content.seed,
       pledgeTx: txRecord.key,
       pledge: txRecord.value.content.spacePledged,
       proofHash: txRecord.value.content.pledgeProof,
