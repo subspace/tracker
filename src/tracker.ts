@@ -35,16 +35,18 @@ export class Tracker extends EventEmitter {
 
   private async init () {
     // decides if to create or load the lht
-    let lht = await this.storage.get('lht')
-    if (lht) {
-      this.loadLht(lht)
-    } else {
-      this.lht = new Map()
-    }
+    // let lht = await this.storage.get('lht')
+    // if (lht) {
+    //   this.loadLht(lht)
+    // } else {
+    //   this.lht = new Map()
+    // }
 
-    setInterval( () => {
-      this.storage.put('lht', JSON.stringify([...this.lht]))
-    }, 6000000) // save every hour
+    // setInterval( () => {
+    //   this.storage.put('lht', JSON.stringify([...this.lht]))
+    // }, 6000000) // save every hour
+
+    this.lht = new Map()
 
     return
   }
