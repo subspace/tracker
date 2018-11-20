@@ -98,10 +98,16 @@ $ cd tracker
 $ yarn
 ```
 
-Build manually.  
- 
+Build manually:  
+
 ```
-$ tsc -w
+$ npm run build
+```
+
+Watch for file changes:
+
+```
+$ npm run watch
 ```
 
 [Instructions](https://code.visualstudio.com/docs/languages/typescript#_step-2-run-the-typescript-build) to automate with visual studio code.
