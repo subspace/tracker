@@ -285,7 +285,7 @@ class Tracker extends events_1.default {
         }
         return activeHosts;
     }
-    getNeighbors(sourceId, validHosts) {
+    getNeighbors(sourceId, validHosts, count) {
         // generate an array of node_ids based on the current membership set
         // default number (N) is log(2)(tracker_length), but no less than four
         // for my direct neighbors that I will connect to (first N/2)
@@ -303,7 +303,13 @@ class Tracker extends events_1.default {
         });
         const candidates = allNodes.slice();
         // We take `log2(numberOfNodes)`, but not less than 4 and not more than total number of nodes available
-        const nodesToReturn = Math.min(Math.max(4, Math.round(Math.log2(this.getLength()))), candidates.length);
+        let nodesToReturn;
+        if (count) {
+            nodesToReturn = count;
+        }
+        else {
+            nodesToReturn = Math.min(Math.max(4, Math.round(Math.log2(this.getLength()))), candidates.length);
+        }
         const halfNodesToReturn = Math.floor(nodesToReturn / 2);
         const closestIds = [];
         let hashedId = ownId;

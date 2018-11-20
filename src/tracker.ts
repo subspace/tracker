@@ -347,7 +347,7 @@ export class Tracker extends EventEmitter {
     return activeHosts  
   }
 
-  getNeighbors(sourceId: string, validHosts: string[]): string[] {
+  getNeighbors(sourceId: string, validHosts: string[], count?: number): string[] {
     // generate an array of node_ids based on the current membership set
     // default number (N) is log(2)(tracker_length), but no less than four
     // for my direct neighbors that I will connect to (first N/2)
@@ -366,15 +366,21 @@ export class Tracker extends EventEmitter {
 
     const candidates: Uint8Array[] = allNodes.slice();
     // We take `log2(numberOfNodes)`, but not less than 4 and not more than total number of nodes available
-    const nodesToReturn = Math.min(
-      Math.max(
-        4,
-        Math.round(
-            Math.log2(this.getLength())
-        )
-      ),
-      candidates.length
-    );
+    let nodesToReturn: number
+    if (count) {
+      nodesToReturn = count
+    } else {
+      nodesToReturn = Math.min(
+        Math.max(
+          4,
+          Math.round(
+              Math.log2(this.getLength())
+          )
+        ),
+        candidates.length
+      );
+    }
+    
     const halfNodesToReturn = Math.floor(nodesToReturn / 2);
 
     const closestIds: Uint8Array[] = [];
