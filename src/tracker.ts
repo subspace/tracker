@@ -53,6 +53,10 @@ export class Tracker extends EventEmitter {
     this.lht = new Map(JSON.parse(lht))
   }
 
+  public clearLht() {
+    this.lht = new Map()
+  }
+
   // host messages and validation
 
 

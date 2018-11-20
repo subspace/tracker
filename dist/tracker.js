@@ -45,6 +45,9 @@ class Tracker extends events_1.default {
     loadLht(lht) {
         this.lht = new Map(JSON.parse(lht));
     }
+    clearLht() {
+        this.lht = new Map();
+    }
     // host messages and validation
     async isValidNeighborRequest(message) {
         // validate a pending join message received via gossip 
