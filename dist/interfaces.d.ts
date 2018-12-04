@@ -9,6 +9,8 @@ export interface IJoinObject extends IUpdateObject {
     pledge: number;
     proofHash: string;
     publicIp: string;
+    tcpPort: number;
+    wsPort: number;
     isGateway: boolean;
     signature: string;
     signatures: INeighborProof[];
@@ -42,6 +44,8 @@ export interface IEntryObject {
     pledge: number;
     proofHash: string;
     publicIp: string;
+    tcpPort: number;
+    wsPort: number;
     isGateway: boolean;
     createdAt: number;
     updatedAt: number;

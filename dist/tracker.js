@@ -90,7 +90,7 @@ class Tracker extends events_1.default {
         test.valid = true;
         return test;
     }
-    async createJoinMessage(publicIP, isGateway, signatures) {
+    async createJoinMessage(publicIp, tcpPort, wsPort, isGateway, signatures) {
         const profile = this.wallet.getProfile();
         const pledge = this.wallet.profile.pledge;
         const join = {
@@ -99,8 +99,10 @@ class Tracker extends events_1.default {
             publicKey: profile.publicKey,
             pledge: pledge.size,
             proofHash: pledge.proof,
-            publicIp: publicIP,
-            isGateway: isGateway,
+            publicIp,
+            tcpPort,
+            wsPort,
+            isGateway,
             timestamp: Date.now(),
             signature: null,
             signatures
@@ -228,6 +230,8 @@ class Tracker extends events_1.default {
             proofHash: txRecord.value.content.pledgeProof,
             publicIp: null,
             isGateway: null,
+            wsPort: null,
+            tcpPort: null,
             createdAt: txRecord.value.createdAt,
             updatedAt: txRecord.value.createdAt,
             interval: txRecord.value.content.pledgeInterval,
@@ -254,6 +258,8 @@ class Tracker extends events_1.default {
         if (update.type === 'join') {
             entry.isGateway = update.isGateway;
             entry.publicIp = update.publicIp;
+            entry.tcpPort = update.tcpPort;
+            entry.wsPort = update.wsPort;
         }
         entry.updatedAt = update.timestamp;
         entry.log.push(update);

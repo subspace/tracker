@@ -10,6 +10,8 @@ export interface IJoinObject extends IUpdateObject {
   pledge: number
   proofHash: string
   publicIp: string
+  tcpPort: number
+  wsPort: number
   isGateway: boolean
   signature: string
   signatures: INeighborProof[]
@@ -48,6 +50,8 @@ export interface IEntryObject {
   pledge: number      // space pledged by host
   proofHash: string   // hash of proof of space
   publicIp: string    // publicIP of host
+  tcpPort: number
+  wsPort: number
   isGateway: boolean  
   createdAt: number   // when the pledge starts
   updatedAt: number   // when the entry was last updated

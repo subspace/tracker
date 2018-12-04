@@ -22,7 +22,7 @@ export declare class Tracker extends EventEmitter {
         valid: boolean;
         reason: string;
     }>;
-    createJoinMessage(publicIP: string, isGateway: boolean, signatures: INeighborProof[]): Promise<IHostMessage>;
+    createJoinMessage(publicIp: string, tcpPort: number, wsPort: number, isGateway: boolean, signatures: INeighborProof[]): Promise<IHostMessage>;
     isValidJoinMessage(): Promise<void>;
     createLeaveMessage(): Promise<IHostMessage>;
     isValidLeaveMessage(): Promise<void>;

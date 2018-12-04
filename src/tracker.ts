@@ -110,7 +110,7 @@ export class Tracker extends EventEmitter {
     return test
   }
 
-  public async createJoinMessage(publicIP: string, isGateway: boolean, signatures: INeighborProof[]) {
+  public async createJoinMessage(publicIp: string, tcpPort: number, wsPort: number, isGateway: boolean, signatures: INeighborProof[]) {
     const profile = this.wallet.getProfile()
     const pledge = this.wallet.profile.pledge
 
@@ -120,8 +120,10 @@ export class Tracker extends EventEmitter {
       publicKey: profile.publicKey,
       pledge: pledge.size,
       proofHash: pledge.proof,
-      publicIp: publicIP, 
-      isGateway: isGateway,
+      publicIp, 
+      tcpPort,
+      wsPort,
+      isGateway,
       timestamp: Date.now(),
       signature: null,
       signatures
@@ -278,6 +280,8 @@ export class Tracker extends EventEmitter {
       proofHash: txRecord.value.content.pledgeProof,
       publicIp: null,
       isGateway: null,
+      wsPort: null,
+      tcpPort: null,
       createdAt: txRecord.value.createdAt,
       updatedAt: txRecord.value.createdAt,
       interval: txRecord.value.content.pledgeInterval,
@@ -308,6 +312,8 @@ export class Tracker extends EventEmitter {
     if (update.type === 'join') {
       entry.isGateway = update.isGateway
       entry.publicIp = update.publicIp
+      entry.tcpPort = update.tcpPort
+      entry.wsPort = update.wsPort
     }
 
     entry.updatedAt = update.timestamp
