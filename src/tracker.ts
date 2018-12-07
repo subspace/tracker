@@ -353,6 +353,40 @@ export class Tracker extends EventEmitter {
     return activeHosts  
   }
 
+  getMyNeighbors(myId: string, activeHosts: string[], minHosts = 3): string[] {
+    // select M direct neighbors (my side) out of N active host entries in the tracker
+
+    // if less than min hosts, return all active hosts
+    if (activeHosts.length <= minHosts) {
+      return activeHosts
+    }
+
+    // else set M as log(2) number of active hosts on the network
+    const M = Math.max(
+      minHosts,
+      Math.floor(Math.log2(activeHosts.length))
+    )
+
+    // iteratively has myId N times
+    let iterativeHash = crypto.getHash(myId)
+    const hashes: string[] = [iterativeHash]
+    for( let i = M; i > 1; --i) {
+      iterativeHash = crypto.getHash(iterativeHash)
+      hashes.push(iterativeHash)
+    }
+
+    // find the closest host to each hash, filter out current neighbors
+    const candidates = activeHosts.map(host => Buffer.from(host, 'hex'))
+    const closestHosts: string[] = []
+    for (let hash of hashes) {
+      const closestHost = getClosestIdByXor(Buffer.from(hash, 'hex'), candidates)
+      candidates.splice(candidates.indexOf(Buffer.from(closestHost)), 1)
+      closestHosts.push(Buffer.from(closestHost).toString('hex'))
+    }
+
+    return closestHosts
+  }
+
   getNeighbors(sourceId: string, validHosts: string[], count?: number): string[] {
     // generate an array of node_ids based on the current membership set
     // default number (N) is log(2)(tracker_length), but no less than four
