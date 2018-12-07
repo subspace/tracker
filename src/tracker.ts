@@ -353,6 +353,10 @@ export class Tracker extends EventEmitter {
     return activeHosts  
   }
 
+  getSomeStuff() {
+    
+  }
+ 
   getMyNeighbors(myId: string, activeHosts: string[], minHosts = 3): string[] {
     // select M direct neighbors (my side) out of N active host entries in the tracker
 
