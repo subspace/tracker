@@ -28,7 +28,7 @@ export declare class Tracker extends EventEmitter {
     isValidLeaveMessage(): Promise<void>;
     createFailureMessage(nodeId: string): Promise<IHostMessage>;
     signFailureMessage(failureMessage: IFailureObject): Promise<ISignatureObject>;
-    compileFailureMessage(nodeId: string, timestamp: number, signatures: ISignatureObject[]): Promise<IHostMessage>;
+    compileFailureMessage(nodeId: string, timestamp: number, nonce: string, signatures: ISignatureObject[]): Promise<IHostMessage>;
     isValidFailureMessage(): Promise<void>;
     addEntry(txRecord: Record): void;
     getEntry(node_id: string): IEntryObject;

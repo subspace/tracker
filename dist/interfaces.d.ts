@@ -28,12 +28,14 @@ export interface ILeaveObject extends IUpdateObject {
 }
 export interface ISignatureObject {
     nodeId: string;
+    nonce: string;
     publicKey: string;
     timestamp: number;
     signature: string;
 }
 export interface IFailureObject extends IUpdateObject {
     type: 'failure';
+    nonce: string;
     previous: string;
     signatures: ISignatureObject[];
 }

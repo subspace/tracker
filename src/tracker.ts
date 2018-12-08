@@ -182,20 +182,27 @@ export class Tracker extends EventEmitter {
   public async createFailureMessage(nodeId: string) {
     const profile = this.wallet.getProfile()
 
+    const timestamp = Date.now()
+    const nonce = crypto.getHash(nodeId + profile.id + timestamp.toString())
+
     const failure: IFailureObject = {
       type: 'failure',
       nodeId: nodeId,
+      nonce,
       previous: null,
-      timestamp: Date.now(),
+      timestamp,
       signatures: []
     }
 
     const signatureObject: ISignatureObject = {
-      nodeId: nodeId,
+      nodeId,
+      nonce,
       publicKey: profile.publicKey,
-      timestamp: Date.now(),
-      signature: await crypto.sign(failure, profile.privateKeyObject)
+      timestamp,
+      signature: null
     }
+
+    signatureObject.signature = await crypto.sign(signatureObject, profile.privateKeyObject)
 
     failure.signatures.push(signatureObject)
 
@@ -217,6 +224,7 @@ export class Tracker extends EventEmitter {
 
     const signatureObject: ISignatureObject = {
       nodeId: failureMessage.nodeId,
+      nonce: failureMessage.nonce,
       publicKey: profile.publicKey,
       timestamp: Date.now(),
       signature: null
@@ -239,13 +247,14 @@ export class Tracker extends EventEmitter {
     return signatureObject
   }
 
-  public async compileFailureMessage(nodeId: string, timestamp: number, signatures: ISignatureObject[]) {
+  public async compileFailureMessage(nodeId: string, timestamp: number, nonce: string, signatures: ISignatureObject[]) {
     const profile = this.wallet.getProfile()
 
     const failure: IFailureObject = {
       type: 'failure',
-      previous: null,
       nodeId,
+      nonce,
+      previous: null,
       timestamp,
       signatures
     }
