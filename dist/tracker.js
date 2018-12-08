@@ -291,16 +291,16 @@ class Tracker extends events_1.default {
         }
         return activeHosts;
     }
-    getMyNeighbors(myId, activeHosts, minHosts = 3) {
+    getHostNeighbors(hostId, activeHosts, minHosts = 3) {
         // select M direct neighbors (my side) out of N active host entries in the tracker
         // if less than min hosts, return all active hosts
         if (activeHosts.length <= minHosts) {
-            return activeHosts;
+            return activeHosts.filter(host => host !== hostId);
         }
         // else set M as log(2) number of active hosts on the network
         const M = Math.max(minHosts, Math.floor(Math.log2(activeHosts.length)));
         // iteratively has myId N times
-        let iterativeHash = crypto.getHash(myId);
+        let iterativeHash = crypto.getHash(hostId);
         const hashes = [iterativeHash];
         for (let i = M; i > 1; --i) {
             iterativeHash = crypto.getHash(iterativeHash);

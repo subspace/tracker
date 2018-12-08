@@ -353,12 +353,12 @@ export class Tracker extends EventEmitter {
     return activeHosts  
   }
  
-  getMyNeighbors(myId: string, activeHosts: string[], minHosts = 3): string[] {
+  getHostNeighbors(hostId: string, activeHosts: string[], minHosts = 3): string[] {
     // select M direct neighbors (my side) out of N active host entries in the tracker
 
     // if less than min hosts, return all active hosts
     if (activeHosts.length <= minHosts) {
-      return activeHosts
+      return activeHosts.filter(host => host !== hostId)
     }
 
     // else set M as log(2) number of active hosts on the network
@@ -368,7 +368,7 @@ export class Tracker extends EventEmitter {
     )
 
     // iteratively has myId N times
-    let iterativeHash = crypto.getHash(myId)
+    let iterativeHash = crypto.getHash(hostId)
     const hashes: string[] = [iterativeHash]
     for( let i = M; i > 1; --i) {
       iterativeHash = crypto.getHash(iterativeHash)

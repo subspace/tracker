@@ -38,7 +38,7 @@ export declare class Tracker extends EventEmitter {
     getLength(): number;
     getAllHosts(): string[];
     getActiveHosts(): string[];
-    getMyNeighbors(myId: string, activeHosts: string[], minHosts?: number): string[];
+    getHostNeighbors(hostId: string, activeHosts: string[], minHosts?: number): string[];
     getNeighbors(sourceId: string, validHosts: string[], count?: number): string[];
     parseUpdate(update: ILeaveObject | IFailureObject | IJoinObject): {
         array: (string | number)[];
