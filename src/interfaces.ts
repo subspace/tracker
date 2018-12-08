@@ -73,6 +73,6 @@ export interface IMessage {
 }
 
 export interface IHostMessage extends IMessage {
-  type: 'host-leave'| 'host-join' | 'host-failure'
+  type: 'host-leave'| 'host-join' | 'pending-failure-request' |'host-failure'
 }
 

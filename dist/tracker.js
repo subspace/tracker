@@ -164,7 +164,7 @@ class Tracker extends events_1.default {
         failure.signatures.push(signatureObject);
         let message = {
             version: 0,
-            type: 'host-failure',
+            type: 'pending-failure-request',
             sender: profile.id,
             data: failure,
             timestamp: Date.now(),

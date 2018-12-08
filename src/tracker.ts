@@ -201,7 +201,7 @@ export class Tracker extends EventEmitter {
 
     let message: IHostMessage = {
       version: 0,
-      type: 'host-failure',
+      type: 'pending-failure-request',
       sender: profile.id,
       data: <IFailureObject> failure,
       timestamp: Date.now(),
