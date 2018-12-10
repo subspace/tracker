@@ -1,5 +1,5 @@
 import * as crypto from '@subspace/crypto'
-import EventEmitter from 'events'
+import * as EventEmitter from 'events'
 import {getClosestIdByXor} from '@subspace/utils';
 import {IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IHostMessage, ISignatureObject, IMessage, INeighborProof} from "./interfaces"
 
@@ -63,14 +63,14 @@ export class Tracker extends EventEmitter {
 
 
   public async isValidNeighborRequest(message: IMessage) {
-    // validate a pending join message received via gossip 
+    // validate a pending join message received via gossip
     const pledgeId: string = message.data
     const test = {
       valid: false,
       reason: <string> null
     }
 
-    // validate the timestamp 
+    // validate the timestamp
     if (! crypto.isDateWithinRange(message.timestamp, 600000)) {
       test.reason = 'Invalid neighbor request, timestamp out of range'
       return test
@@ -94,7 +94,7 @@ export class Tracker extends EventEmitter {
       test.reason = 'Invalid neighbor request, host is not referencing a pledge tx'
     }
 
-    // validate the host matches the pledge tx 
+    // validate the host matches the pledge tx
     if (!(txRecord.value.publicKey === message.publicKey)) {
       test.reason = 'Invalid neighbor request, host does not match pledge'
       return test
@@ -120,7 +120,7 @@ export class Tracker extends EventEmitter {
       publicKey: profile.publicKey,
       pledge: pledge.size,
       proofHash: pledge.proof,
-      publicIp, 
+      publicIp,
       tcpPort,
       wsPort,
       isGateway,
@@ -130,7 +130,7 @@ export class Tracker extends EventEmitter {
     }
 
     join.signature = await crypto.sign(join, profile.privateKeyObject)
- 
+
     let message: IHostMessage = {
       version: 0,
       type: 'host-join',
@@ -359,9 +359,9 @@ export class Tracker extends EventEmitter {
         activeHosts.push(key)
       }
     }
-    return activeHosts  
+    return activeHosts
   }
- 
+
   getHostNeighbors(hostId: string, activeHosts: string[], minHosts = 3): string[] {
     // select M direct neighbors (my side) out of N active host entries in the tracker
 
@@ -429,7 +429,7 @@ export class Tracker extends EventEmitter {
         candidates.length
       );
     }
-    
+
     const halfNodesToReturn = Math.floor(nodesToReturn / 2);
 
     const closestIds: Uint8Array[] = [];
@@ -482,18 +482,18 @@ export class Tracker extends EventEmitter {
       });
   }
 
-  // simple host mem pool implementation 
+  // simple host mem pool implementation
 
   // pending join message -> gossip fast, let my neighbors know I want to connect
   // pending rejoin message -> gossip fast, let my neighbors know that I want to connect
   // these could both be the same message, either add or update tracker
 
-  // in the meantime collect signatures from all neighbors 
+  // in the meantime collect signatures from all neighbors
   // once you have all required signatures
   // what if my neighbors change during the transition period?
   // is each node fully validating that these are the correct neighbors?
   // when I join, everyones neighbors will potentially shift
-  // is there a grace period for shifting neighbors 
+  // is there a grace period for shifting neighbors
 
   // full join message -> prove neighborhood and add entry to LHT
   // full rejoin message -> prove neighborhood and restart time in LHT
@@ -502,7 +502,7 @@ export class Tracker extends EventEmitter {
   // failure message -> my neighbors prove that I have left, pauses my time in LHT
 
 
-  
+
   // memDelta methods
   parseUpdate(update: ILeaveObject | IFailureObject | IJoinObject) {
     const array: (string | number)[] = Object.values(update)
