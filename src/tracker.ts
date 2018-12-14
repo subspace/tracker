@@ -146,8 +146,7 @@ export class Tracker extends EventEmitter {
   }
 
   public async isValidJoinMessage() {
-
-  }
+}
 
   public async createLeaveMessage() {
     const profile = this.wallet.getProfile()
@@ -175,9 +174,7 @@ export class Tracker extends EventEmitter {
     return message
   }
 
-  public async isValidLeaveMessage() {
-
-  }
+  public async isValidLeaveMessage() {}
 
   public async createFailureMessage(nodeId: string) {
     const profile = this.wallet.getProfile()
@@ -272,9 +269,7 @@ export class Tracker extends EventEmitter {
     return message
   }
 
-  public async isValidFailureMessage() {
-
-  }
+  public async isValidFailureMessage() {}
 
   // LHT (tracker proper) methods
 
@@ -348,7 +343,7 @@ export class Tracker extends EventEmitter {
 
   getAllHosts() {
     // returns an array of all host on the lht
-    return [...this.lht.keys()]
+    return [...this.lht.values()]
   }
 
   getActiveHosts() {

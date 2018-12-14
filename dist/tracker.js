@@ -143,8 +143,7 @@
             message.signature = await crypto.sign(message, profile.privateKeyObject);
             return message;
         }
-        async isValidLeaveMessage() {
-        }
+        async isValidLeaveMessage() { }
         async createFailureMessage(nodeId) {
             const profile = this.wallet.getProfile();
             const timestamp = Date.now();
@@ -223,8 +222,7 @@
             message.signature = await crypto.sign(message, profile.privateKeyObject);
             return message;
         }
-        async isValidFailureMessage() {
-        }
+        async isValidFailureMessage() { }
         // LHT (tracker proper) methods
         addEntry(txRecord) {
             // add a new host to the LHT on valid pledge tx
@@ -285,7 +283,7 @@
         }
         getAllHosts() {
             // returns an array of all host on the lht
-            return [...this.lht.keys()];
+            return [...this.lht.values()];
         }
         getActiveHosts() {
             // return an array of all active hosts on the lht

@@ -36,7 +36,7 @@ export declare class Tracker extends EventEmitter {
     removeEntry(nodeId: string): void;
     hasEntry(nodeId: string): boolean;
     getLength(): number;
-    getAllHosts(): string[];
+    getAllHosts(): IEntryObject[];
     getActiveHosts(): string[];
     getHostNeighbors(hostId: string, activeHosts: string[], minHosts?: number): string[];
     getNeighbors(sourceId: string, validHosts: string[], count?: number): string[];
