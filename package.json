@@ -5,7 +5,6 @@
   "types": "dist/tracker.d.ts",
   "author": "subspace",
   "license": "MIT",
-  "private": true,
   "devDependencies": {
     "@subspace/database": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com:subspace/database.git",
     "@subspace/ledger": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com:subspace/ledger.git",
@@ -18,7 +17,7 @@
     "typescript": "^3.0.1"
   },
   "dependencies": {
-    "@subspace/crypto": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com/subspace/crypto.git",
+    "@subspace/crypto": "git+https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com/subspace/crypto.git",
     "@subspace/utils": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com/subspace/utils.git"
   },
   "scripts": {
