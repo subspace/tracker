@@ -7,8 +7,8 @@ export {IHostMessage, IJoinObject, ILeaveObject, IFailureObject, ISignatureObjec
 
 // dev deps for types only!
 import Wallet from '@subspace/wallet'
-import {Ledger} from '@subspace/ledger'
-import {DataBase, Record, IValue} from '@subspace/database'
+import {Ledger, Block, Tx, ITxValue} from '@subspace/ledger'
+import {DataBase, ImmutableRecord, MutableRecord } from '@subspace/database'
 import Storage from '@subspace/storage'
 
 // TODO
@@ -77,25 +77,15 @@ export class Tracker extends EventEmitter {
     }
 
     // ensure the pledge tx has been published
-    let txRecordValue: IValue = JSON.parse( await this.storage.get(pledgeId))
-    let txRecord: Record = null
-    if (!txRecordValue) {
-      txRecordValue = this.ledger.validTxs.get(message.data)
-      if (!txRecordValue) {
-        test.reason = 'Invalid neighbor request, cannot locate pledge tx'
-        return test
-      }
-    }
-    txRecord = Record.readPacked(pledgeId, txRecordValue)
-    await txRecord.unpack(null)
+    let tx = await this.ledger.txPool.getTxRecord(pledgeId)
 
     // ensure the pledge tx is a pledge tx
-    if (!(txRecord.value.content.type === 'pledge')) {
+    if (!(tx.value.content.type === 'pledge')) {
       test.reason = 'Invalid neighbor request, host is not referencing a pledge tx'
     }
 
     // validate the host matches the pledge tx
-    if (!(txRecord.value.publicKey === message.publicKey)) {
+    if (!(tx.value.content.publicKey === message.publicKey)) {
       test.reason = 'Invalid neighbor request, host does not match pledge'
       return test
     }
@@ -273,29 +263,29 @@ export class Tracker extends EventEmitter {
 
   // LHT (tracker proper) methods
 
-  addEntry(txRecord: Record) {
+  addEntry(tx: Tx) {
     // add a new host to the LHT on valid pledge tx
 
     var entry: IEntryObject = {
       hash: null,
-      publicKey: txRecord.value.content.seed,
-      pledgeTx: txRecord.key,
-      pledge: txRecord.value.content.spacePledged,
-      proofHash: txRecord.value.content.pledgeProof,
+      publicKey: tx.value.content.sender,
+      pledgeTx: tx.key,
+      pledge: tx.value.content.spacePledged,
+      proofHash: tx.value.content.pledgeProof,
       publicIp: null,
       isGateway: null,
       wsPort: null,
       tcpPort: null,
-      createdAt: txRecord.value.createdAt,
-      updatedAt: txRecord.value.createdAt,
-      interval: txRecord.value.content.pledgeInterval,
+      createdAt: tx.value.createdAt,
+      updatedAt: tx.value.createdAt,
+      interval: tx.value.content.pledgeInterval,
       status: false,
       uptime: 0,
       log: []
     }
 
     entry.hash = crypto.getHash(JSON.stringify(entry))
-    const nodeId = crypto.getHash(txRecord.value.content.seed)
+    const nodeId = crypto.getHash(tx.value.content.seed)
     this.lht.set(nodeId, entry)
   }
 

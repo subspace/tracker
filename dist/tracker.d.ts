@@ -3,8 +3,7 @@ import * as EventEmitter from 'events';
 import { IFailureObject, IEntryObject, IJoinObject, ILeaveObject, IHostMessage, ISignatureObject, IMessage, INeighborProof } from "./interfaces";
 export { IHostMessage, IJoinObject, ILeaveObject, IFailureObject, ISignatureObject, IEntryObject };
 import Wallet from '@subspace/wallet';
-import { Ledger } from '@subspace/ledger';
-import { Record } from '@subspace/database';
+import { Ledger, Tx } from '@subspace/ledger';
 import Storage from '@subspace/storage';
 export declare class Tracker extends EventEmitter {
     storage: Storage;
@@ -30,7 +29,7 @@ export declare class Tracker extends EventEmitter {
     signFailureMessage(failureMessage: IFailureObject): Promise<ISignatureObject>;
     compileFailureMessage(nodeId: string, timestamp: number, nonce: string, signatures: ISignatureObject[]): Promise<IHostMessage>;
     isValidFailureMessage(): Promise<void>;
-    addEntry(txRecord: Record): void;
+    addEntry(tx: Tx): void;
     getEntry(node_id: string): IEntryObject;
     updateEntry(update: ILeaveObject | IFailureObject | IJoinObject): void;
     removeEntry(nodeId: string): void;

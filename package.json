@@ -6,8 +6,8 @@
   "author": "subspace",
   "license": "MIT",
   "devDependencies": {
-    "@subspace/database": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com:subspace/database.git",
-    "@subspace/ledger": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com:subspace/ledger.git",
+    "@subspace/database": "git+ssh://git@github.com/subspace/database.git",
+    "@subspace/ledger": "git+ssh://git@github.com/subspace/ledger.git",
     "@subspace/storage": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com:subspace/storage.git",
     "@subspace/wallet": "https://c9ed7a77df1c3e0e10413b1580924003c4ae75a3:x-oauth-basic@github.com:subspace/wallet.git",
     "@types/jest": "^23.3.1",

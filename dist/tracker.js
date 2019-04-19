@@ -4,7 +4,7 @@
         if (v !== undefined) module.exports = v;
     }
     else if (typeof define === "function" && define.amd) {
-        define(["require", "exports", "@subspace/crypto", "events", "@subspace/utils", "@subspace/database"], factory);
+        define(["require", "exports", "@subspace/crypto", "events", "@subspace/utils"], factory);
     }
 })(function (require, exports) {
     "use strict";
@@ -12,7 +12,6 @@
     const crypto = require("@subspace/crypto");
     const EventEmitter = require("events");
     const utils_1 = require("@subspace/utils");
-    const database_1 = require("@subspace/database");
     // TODO
     // implement light_host and light_client trackers
     // implement pending_join protocol for atomic joins
@@ -61,23 +60,13 @@
                 return test;
             }
             // ensure the pledge tx has been published
-            let txRecordValue = JSON.parse(await this.storage.get(pledgeId));
-            let txRecord = null;
-            if (!txRecordValue) {
-                txRecordValue = this.ledger.validTxs.get(message.data);
-                if (!txRecordValue) {
-                    test.reason = 'Invalid neighbor request, cannot locate pledge tx';
-                    return test;
-                }
-            }
-            txRecord = database_1.Record.readPacked(pledgeId, txRecordValue);
-            await txRecord.unpack(null);
+            let tx = await this.ledger.txPool.getTxRecord(pledgeId);
             // ensure the pledge tx is a pledge tx
-            if (!(txRecord.value.content.type === 'pledge')) {
+            if (!(tx.value.content.type === 'pledge')) {
                 test.reason = 'Invalid neighbor request, host is not referencing a pledge tx';
             }
             // validate the host matches the pledge tx
-            if (!(txRecord.value.publicKey === message.publicKey)) {
+            if (!(tx.value.content.publicKey === message.publicKey)) {
                 test.reason = 'Invalid neighbor request, host does not match pledge';
                 return test;
             }
@@ -224,27 +213,27 @@
         }
         async isValidFailureMessage() { }
         // LHT (tracker proper) methods
-        addEntry(txRecord) {
+        addEntry(tx) {
             // add a new host to the LHT on valid pledge tx
             var entry = {
                 hash: null,
-                publicKey: txRecord.value.content.seed,
-                pledgeTx: txRecord.key,
-                pledge: txRecord.value.content.spacePledged,
-                proofHash: txRecord.value.content.pledgeProof,
+                publicKey: tx.value.content.sender,
+                pledgeTx: tx.key,
+                pledge: tx.value.content.spacePledged,
+                proofHash: tx.value.content.pledgeProof,
                 publicIp: null,
                 isGateway: null,
                 wsPort: null,
                 tcpPort: null,
-                createdAt: txRecord.value.createdAt,
-                updatedAt: txRecord.value.createdAt,
-                interval: txRecord.value.content.pledgeInterval,
+                createdAt: tx.value.createdAt,
+                updatedAt: tx.value.createdAt,
+                interval: tx.value.content.pledgeInterval,
                 status: false,
                 uptime: 0,
                 log: []
             };
             entry.hash = crypto.getHash(JSON.stringify(entry));
-            const nodeId = crypto.getHash(txRecord.value.content.seed);
+            const nodeId = crypto.getHash(tx.value.content.seed);
             this.lht.set(nodeId, entry);
         }
         getEntry(node_id) {
